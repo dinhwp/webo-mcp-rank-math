@@ -1,4 +1,4 @@
-stages:
+﻿stages:
   - .pre
   - syntax-check
   - code-review
