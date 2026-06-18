@@ -1029,7 +1029,7 @@ function webo_mcp_rank_math_ability_args( $args, $name ) {
 		$args['meta']['webo_mcp']['risk']  = 'low';
 	} elseif ( 'webo-rank-math/config-mutate' === (string) $name ) {
 		$args['meta']['webo_mcp']['scope'] = 'admin';
-		$args['meta']['webo_mcp']['risk']  = 'high';
+		$args['meta']['webo_mcp']['risk']  = 'critical';
 	} else {
 		$args['meta']['webo_mcp']['scope'] = 'write';
 		$args['meta']['webo_mcp']['risk']  = 'medium';
@@ -1150,7 +1150,17 @@ add_action(
 					),
 					'webo_mcp'     => array(
 						'scope' => 'write',
-						'risk'  => 'medium',
+						'risk'  => 'high',
+						'action_scopes' => array(
+							'upsert' => 'write',
+							'delete' => 'delete',
+							'cleanup' => 'delete',
+						),
+						'action_risks' => array(
+							'upsert' => 'medium',
+							'delete' => 'high',
+							'cleanup' => 'high',
+						),
 					),
 				),
 			)
