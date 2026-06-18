@@ -1340,17 +1340,24 @@ function webo_mcp_rank_math_filter_public_tools_list_payload( $payload, $include
 		return $payload;
 	}
 
-	$hidden = array(
-		'rankmath_update_post_meta',
-		'webo-rank-math/post-seo-mutate',
-		'webo-rank-math/schema-mutate',
-	);
-
 	$payload['tools'] = array_values(
 		array_filter(
 			$payload['tools'],
-			static function ( $tool ) use ( $hidden ) {
-				return ! isset( $tool['name'] ) || ! in_array( (string) $tool['name'], $hidden, true );
+			static function ( $tool ) {
+				if ( ! isset( $tool['name'] ) ) {
+					return true;
+				}
+
+				$name = (string) $tool['name'];
+				if ( 'seo_quick_update' === $name ) {
+					return true;
+				}
+
+				if ( 0 === strpos( $name, 'webo-rank-math/' ) || 0 === strpos( $name, 'rankmath_' ) ) {
+					return false;
+				}
+
+				return true;
 			}
 		)
 	);
