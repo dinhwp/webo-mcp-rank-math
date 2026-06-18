@@ -1,4 +1,4 @@
-﻿stages:
+stages:
   - .pre
   - syntax-check
   - code-review
@@ -62,15 +62,6 @@ variables:
   TELEGRAM_CHAT_ID: '-1002508824034'
   TELEGRAM_THREAD_ID: '7005'
   TELEGRAM_BOT_TOKEN: '7699680574:AAEVa-4HqOUqgr6X8dHIlf283mHvGCmxQBg'
-
-ci_visible_guard:
-  stage: .pre
-  tags:
-    - instance-runner
-  script:
-    - echo "CI config loaded for $CI_PROJECT_PATH on $CI_COMMIT_REF_NAME"
-  rules:
-    - when: always
 
 notify_telegram_start:
   stage: .pre
