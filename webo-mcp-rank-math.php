@@ -30,6 +30,7 @@ if ( ! defined( 'WEBO_MCP_LICENSE_STORE_URL' ) ) {
 define( 'WEBO_MCP_RANK_MATH_ITEM_ID', 4888 );
 define( 'WEBO_MCP_RANK_MATH_ITEM_NAME', 'WEBO MCP Rank Math SEO Addon' );
 
+require_once WEBO_MCP_RANK_MATH_PATH . 'includes/mutation-contract.php';
 require_once WEBO_MCP_RANK_MATH_PATH . 'includes/license-client.php';
 
 /**
@@ -512,7 +513,14 @@ function webo_mcp_rank_math_execute_schema_mutate_tool( $arguments ) {
 
 		$post    = get_post( $post_id );
 		$action  = isset( $arguments['action'] ) ? sanitize_key( (string) $arguments['action'] ) : 'upsert';
-		$dry_run = ! empty( $arguments['force'] ) ? false : ( ! array_key_exists( 'dry_run', $arguments ) || filter_var( $arguments['dry_run'], FILTER_VALIDATE_BOOLEAN ) );
+
+		// delete and cleanup remove schema meta and are destructive: they require
+		// force=true (or a checkpoint) to run for real, not merely dry_run=false.
+		$is_dangerous   = in_array( $action, array( 'delete', 'cleanup' ), true );
+		$mode           = webo_mcp_resolve_mutation_mode( $arguments, $is_dangerous );
+		$dry_run        = $mode['dry_run'];
+		$force_required = $mode['blocked'];
+		$block_reason   = $mode['reason'];
 
 		if ( 'cleanup' === $action ) {
 			if ( $dry_run ) {
@@ -538,31 +546,48 @@ function webo_mcp_rank_math_execute_schema_mutate_tool( $arguments ) {
 					}
 				}
 
-				return array(
-					'post_id'            => $post_id,
-					'post_type'          => $post ? $post->post_type : null,
-					'slug'               => $post ? $post->post_name : null,
-					'action'             => $action,
-					'dry_run'            => true,
-					'updated'            => false,
-					'delete_all'         => ! empty( $arguments['delete_all'] ),
-					'would_delete_count' => count( $would_delete ),
-					'would_delete'       => $would_delete,
+				return webo_mcp_mutation_response(
+					array(
+						'dry_run'       => true,
+						'would_change'  => count( $would_delete ) > 0,
+						'planned_count' => count( $would_delete ),
+						'diff'          => $would_delete,
+						'context'       => array(
+							'tool'               => 'webo-rank-math/schema-mutate',
+							'post_id'            => $post_id,
+							'post_type'          => $post ? $post->post_type : null,
+							'slug'               => $post ? $post->post_name : null,
+							'action'             => $action,
+							'delete_all'         => ! empty( $arguments['delete_all'] ),
+							'would_delete_count' => count( $would_delete ),
+							'would_delete'       => $would_delete,
+							'force_required'     => $force_required,
+							'reason'             => $block_reason,
+						),
+					)
 				);
 			}
 
 			$preview = webo_rank_math_cleanup_post_schema_meta( $post_id, ! empty( $arguments['delete_all'] ) );
 			webo_mcp_rank_math_clear_post_meta_caches( $post_id );
-			return array_merge(
+			$deleted_count = (int) ( $preview['deleted_count'] ?? ( isset( $preview['deleted'] ) && is_array( $preview['deleted'] ) ? count( $preview['deleted'] ) : 0 ) );
+			return webo_mcp_mutation_response(
 				array(
-					'post_id'   => $post_id,
-					'post_type' => $post ? $post->post_type : null,
-					'slug'      => $post ? $post->post_name : null,
-					'action'    => $action,
-					'dry_run'   => false,
-					'updated'   => true,
-				),
-				$preview
+					'dry_run'       => false,
+					'changed'       => $deleted_count > 0,
+					'changed_count' => $deleted_count,
+					'context'       => array_merge(
+						array(
+							'tool'      => 'webo-rank-math/schema-mutate',
+							'post_id'   => $post_id,
+							'post_type' => $post ? $post->post_type : null,
+							'slug'      => $post ? $post->post_name : null,
+							'action'    => $action,
+							'updated'   => true,
+						),
+						$preview
+					),
+				)
 			);
 		}
 
@@ -607,17 +632,33 @@ function webo_mcp_rank_math_execute_schema_mutate_tool( $arguments ) {
 		}
 
 		$after = $dry_run ? $planned : webo_rank_math_collect_post_meta( $post_id, $keys );
+		$diff  = webo_mcp_rank_math_build_meta_diff( $before, $after, $keys );
 
-		return array(
-			'post_id'       => $post_id,
-			'post_type'     => $post ? $post->post_type : null,
-			'slug'          => $post ? $post->post_name : null,
-			'action'        => $action,
-			'dry_run'       => $dry_run,
-			'updated'       => ! $dry_run,
-			'updated_count' => count( $keys ),
-			'keys'          => $keys,
-			'diff'          => webo_mcp_rank_math_build_meta_diff( $before, $after, $keys ),
+		$changed_count = count( array_filter( $diff, static function ( $item ) {
+			return ! empty( $item['changed'] );
+		} ) );
+
+		return webo_mcp_mutation_response(
+			array(
+				'dry_run'       => $dry_run,
+				'would_change'  => $changed_count > 0,
+				'planned_count' => $changed_count,
+				'changed'       => ! $dry_run && $changed_count > 0,
+				'changed_count' => $dry_run ? 0 : $changed_count,
+				'diff'          => $diff,
+				'context'       => array(
+					'tool'           => 'webo-rank-math/schema-mutate',
+					'post_id'        => $post_id,
+					'post_type'      => $post ? $post->post_type : null,
+					'slug'           => $post ? $post->post_name : null,
+					'action'         => $action,
+					'keys'           => $keys,
+					'updated'        => ! $dry_run,
+					'updated_count'  => $dry_run ? 0 : $changed_count,
+					'force_required' => $force_required,
+					'reason'         => $block_reason,
+				),
+			)
 		);
 	} );
 }
@@ -732,16 +773,28 @@ function webo_mcp_rank_math_execute_public_post_meta_tool( $tool_name, $argument
 			)
 		);
 
-		return array(
-			'post_id'       => $post_id,
-			'post_type'     => $post ? $post->post_type : null,
-			'slug'          => $post ? $post->post_name : null,
-			'dry_run'       => $dry_run,
-			'updated'       => ! $dry_run,
-			'updated_count' => count( array_filter( $diff, static function ( $item ) {
-				return ! empty( $item['changed'] );
-			} ) ),
-			'diff'          => $diff,
+		$changed_count = count( array_filter( $diff, static function ( $item ) {
+			return ! empty( $item['changed'] );
+		} ) );
+
+		return webo_mcp_mutation_response(
+			array(
+				'dry_run'       => $dry_run,
+				'would_change'  => $changed_count > 0,
+				'planned_count' => $changed_count,
+				'changed'       => ! $dry_run && $changed_count > 0,
+				'changed_count' => $dry_run ? 0 : $changed_count,
+				'diff'          => $diff,
+				'context'       => array(
+					'tool'          => 'webo-rank-math/post-seo-mutate',
+					'post_id'       => $post_id,
+					'post_type'     => $post ? $post->post_type : null,
+					'slug'          => $post ? $post->post_name : null,
+					'keys'          => $keys,
+					'updated'       => ! $dry_run,
+					'updated_count' => $dry_run ? 0 : $changed_count,
+				),
+			)
 		);
 	} );
 }
