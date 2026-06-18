@@ -962,11 +962,24 @@ function webo_mcp_rank_math_ability_args( $args, $name ) {
 	if ( ! isset( $args['meta']['mcp'] ) || ! is_array( $args['meta']['mcp'] ) ) {
 		$args['meta']['mcp'] = array();
 	}
+	if ( ! isset( $args['meta']['webo_mcp'] ) || ! is_array( $args['meta']['webo_mcp'] ) ) {
+		$args['meta']['webo_mcp'] = array();
+	}
 
 	$args['meta']['show_in_rest'] = true;
 	$args['meta']['mcp']['public'] = in_array( (string) $name, webo_mcp_rank_math_public_mcp_ability_names(), true );
 	if ( ! isset( $args['meta']['mcp']['type'] ) ) {
 		$args['meta']['mcp']['type'] = 'tool';
+	}
+	if ( false !== strpos( (string) $name, '-query' ) || false !== strpos( (string) $name, '/get-' ) || false !== strpos( (string) $name, '/list-' ) ) {
+		$args['meta']['webo_mcp']['scope'] = 'read';
+		$args['meta']['webo_mcp']['risk']  = 'low';
+	} elseif ( 'webo-rank-math/config-mutate' === (string) $name ) {
+		$args['meta']['webo_mcp']['scope'] = 'admin';
+		$args['meta']['webo_mcp']['risk']  = 'high';
+	} else {
+		$args['meta']['webo_mcp']['scope'] = 'write';
+		$args['meta']['webo_mcp']['risk']  = 'medium';
 	}
 
 	return $args;
