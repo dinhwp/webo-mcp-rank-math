@@ -66,6 +66,39 @@ function webo_mcp_rank_math_public_mcp_ability_names() {
 }
 
 /**
+ * Public AI-safe SEO aliases exposed by seo_quick_update.
+ *
+ * @return array<string,string>
+ */
+function webo_mcp_rank_math_quick_post_meta_aliases() {
+	return array(
+		'title'                => 'rank_math_title',
+		'description'          => 'rank_math_description',
+		'focus_keyword'        => 'rank_math_focus_keyword',
+		'rank_math_title'      => 'rank_math_title',
+		'rank_math_description'=> 'rank_math_description',
+		'rank_math_focus_keyword' => 'rank_math_focus_keyword',
+	);
+}
+
+/**
+ * Advanced SEO aliases kept out of public MCP discovery by default.
+ *
+ * @return array<string,string>
+ */
+function webo_mcp_rank_math_advanced_post_meta_aliases() {
+	return array(
+		'canonical'            => 'rank_math_canonical_url',
+		'canonical_url'        => 'rank_math_canonical_url',
+		'robots'               => 'rank_math_robots',
+		'facebook_title'       => 'rank_math_facebook_title',
+		'facebook_description' => 'rank_math_facebook_description',
+		'twitter_title'        => 'rank_math_twitter_title',
+		'twitter_description'  => 'rank_math_twitter_description',
+	);
+}
+
+/**
  * Rank Math post meta keys that the public MCP write tool can update.
  *
  * @return string[]
@@ -90,18 +123,120 @@ function webo_mcp_rank_math_public_post_meta_keys() {
  * @return array<string,string>
  */
 function webo_mcp_rank_math_public_post_meta_aliases() {
-	return array(
-		'title'                => 'rank_math_title',
-		'description'          => 'rank_math_description',
-		'focus_keyword'        => 'rank_math_focus_keyword',
-		'canonical'            => 'rank_math_canonical_url',
-		'canonical_url'        => 'rank_math_canonical_url',
-		'robots'               => 'rank_math_robots',
-		'facebook_title'       => 'rank_math_facebook_title',
-		'facebook_description' => 'rank_math_facebook_description',
-		'twitter_title'        => 'rank_math_twitter_title',
-		'twitter_description'  => 'rank_math_twitter_description',
+	return array_merge(
+		webo_mcp_rank_math_quick_post_meta_aliases(),
+		webo_mcp_rank_math_advanced_post_meta_aliases()
 	);
+}
+
+/**
+ * ToolRegistry argument schema for AI-safe quick SEO updates.
+ *
+ * @return array<string,array<string,mixed>>
+ */
+function webo_mcp_rank_math_quick_update_tool_arguments() {
+	return array(
+		'post_id' => array(
+			'type'     => 'integer',
+			'required' => false,
+			'min'      => 1,
+		),
+		'id' => array(
+			'type'     => 'integer',
+			'required' => false,
+			'min'      => 1,
+		),
+		'slug' => array(
+			'type'     => 'string',
+			'required' => false,
+		),
+		'post_type' => array(
+			'type'     => 'string',
+			'required' => false,
+			'default'  => 'post',
+		),
+		'site_id' => array(
+			'type'     => 'integer',
+			'required' => false,
+			'min'      => 1,
+		),
+		'title' => array(
+			'type'     => 'string',
+			'required' => false,
+		),
+		'description' => array(
+			'type'     => 'string',
+			'required' => false,
+		),
+		'focus_keyword' => array(
+			'type'     => 'string',
+			'required' => false,
+		),
+	);
+}
+
+/**
+ * ToolRegistry argument schema for internal/admin SEO updates.
+ *
+ * @return array<string,array<string,mixed>>
+ */
+function webo_mcp_rank_math_advanced_update_tool_arguments() {
+	$arguments = webo_mcp_rank_math_quick_update_tool_arguments();
+	$arguments['canonical'] = array(
+		'type'     => 'string',
+		'required' => false,
+	);
+	$arguments['canonical_url'] = array(
+		'type'     => 'string',
+		'required' => false,
+	);
+	$arguments['robots'] = array(
+		'type'     => 'array',
+		'required' => false,
+	);
+	$arguments['facebook_title'] = array(
+		'type'     => 'string',
+		'required' => false,
+	);
+	$arguments['facebook_description'] = array(
+		'type'     => 'string',
+		'required' => false,
+	);
+	$arguments['twitter_title'] = array(
+		'type'     => 'string',
+		'required' => false,
+	);
+	$arguments['twitter_description'] = array(
+		'type'     => 'string',
+		'required' => false,
+	);
+	$arguments['schema'] = array(
+		'type'     => 'object',
+		'required' => false,
+	);
+	$arguments['schemas'] = array(
+		'type'     => 'object',
+		'required' => false,
+	);
+	$arguments['schema_key'] = array(
+		'type'     => 'string',
+		'required' => false,
+	);
+	$arguments['schema_type'] = array(
+		'type'     => 'string',
+		'required' => false,
+	);
+	$arguments['dry_run'] = array(
+		'type'     => 'boolean',
+		'required' => false,
+		'default'  => true,
+	);
+	$arguments['force'] = array(
+		'type'     => 'boolean',
+		'required' => false,
+		'default'  => false,
+	);
+	return $arguments;
 }
 
 /**
@@ -304,6 +439,107 @@ function webo_mcp_rank_math_extract_public_meta_updates( $arguments ) {
 	}
 
 	return array_merge( $updates, webo_mcp_rank_math_normalize_public_meta_updates( $arguments ) );
+}
+
+/**
+ * Extract only AI-safe quick SEO updates.
+ *
+ * @param array<string,mixed> $arguments Tool arguments.
+ * @return array<string,mixed>
+ */
+function webo_mcp_rank_math_extract_quick_meta_updates( $arguments ) {
+	$updates = array();
+	$aliases = webo_mcp_rank_math_quick_post_meta_aliases();
+
+	if ( isset( $arguments['seo_meta'] ) && is_array( $arguments['seo_meta'] ) ) {
+		foreach ( $arguments['seo_meta'] as $raw_key => $value ) {
+			$key = sanitize_key( (string) $raw_key );
+			if ( ! isset( $aliases[ $key ] ) ) {
+				continue;
+			}
+			$mapped            = $aliases[ $key ];
+			$updates[ $mapped ] = webo_mcp_rank_math_sanitize_public_meta_value( $mapped, $value );
+		}
+	}
+
+	foreach ( $arguments as $raw_key => $value ) {
+		$key = sanitize_key( (string) $raw_key );
+		if ( ! isset( $aliases[ $key ] ) ) {
+			continue;
+		}
+		$mapped            = $aliases[ $key ];
+		$updates[ $mapped ] = webo_mcp_rank_math_sanitize_public_meta_value( $mapped, $value );
+	}
+
+	return $updates;
+}
+
+/**
+ * Return user-facing quick-update fields that are explicitly forbidden.
+ *
+ * @param array<string,mixed> $arguments Tool arguments.
+ * @return string[]
+ */
+function webo_mcp_rank_math_quick_update_forbidden_fields( $arguments ) {
+	$forbidden = array(
+		'canonical',
+		'canonical_url',
+		'robots',
+		'schema',
+		'schemas',
+		'schema_key',
+		'schema_type',
+		'noindex',
+		'facebook_title',
+		'facebook_description',
+		'twitter_title',
+		'twitter_description',
+		'og',
+		'og_title',
+		'og_description',
+		'redirect',
+		'rank_math_canonical_url',
+		'rank_math_robots',
+		'rank_math_facebook_title',
+		'rank_math_facebook_description',
+		'rank_math_twitter_title',
+		'rank_math_twitter_description',
+	);
+	$present = array();
+
+	foreach ( $forbidden as $key ) {
+		if ( array_key_exists( $key, $arguments ) && null !== $arguments[ $key ] && '' !== $arguments[ $key ] ) {
+			$present[] = $key;
+		}
+	}
+
+	if ( isset( $arguments['seo_meta'] ) && is_array( $arguments['seo_meta'] ) ) {
+		foreach ( $forbidden as $key ) {
+			if ( array_key_exists( $key, $arguments['seo_meta'] ) && null !== $arguments['seo_meta'][ $key ] && '' !== $arguments['seo_meta'][ $key ] ) {
+				$present[] = $key;
+			}
+		}
+	}
+
+	return array_values( array_unique( $present ) );
+}
+
+/**
+ * Whether a legacy SEO mutate payload can be safely downgraded to seo_quick_update.
+ *
+ * @param array<string,mixed> $arguments Tool arguments.
+ * @return bool
+ */
+function webo_mcp_rank_math_is_quick_only_payload( $arguments ) {
+	if ( ! empty( webo_mcp_rank_math_quick_update_forbidden_fields( $arguments ) ) ) {
+		return false;
+	}
+
+	if ( ! empty( $arguments['posts'] ) || ! empty( $arguments['skip_missing'] ) ) {
+		return false;
+	}
+
+	return ! empty( webo_mcp_rank_math_extract_quick_meta_updates( $arguments ) );
 }
 
 /**
@@ -809,6 +1045,9 @@ function webo_mcp_rank_math_execute_post_seo_mutate_tool( $arguments ) {
 	$action = isset( $arguments['action'] ) ? sanitize_key( (string) $arguments['action'] ) : 'update';
 
 	if ( 'update' === $action ) {
+		if ( webo_mcp_rank_math_is_quick_only_payload( $arguments ) ) {
+			return webo_mcp_rank_math_execute_quick_update_tool( $arguments );
+		}
 		return webo_mcp_rank_math_execute_public_post_meta_tool( 'webo-rank-math/post-seo-mutate', $arguments );
 	}
 
@@ -823,6 +1062,140 @@ function webo_mcp_rank_math_execute_post_seo_mutate_tool( $arguments ) {
 }
 
 /**
+ * Execute the public AI-safe quick SEO update tool.
+ *
+ * @param array<string,mixed> $arguments Tool arguments.
+ * @return array<string,mixed>|\WP_Error
+ */
+function webo_mcp_rank_math_execute_quick_update_tool( $arguments ) {
+	$forbidden = webo_mcp_rank_math_quick_update_forbidden_fields( $arguments );
+	if ( ! empty( $forbidden ) ) {
+		return new WP_Error(
+			'webo_mcp_rank_math_quick_update_forbidden_field',
+			sprintf( 'seo_quick_update only accepts title, description, and focus_keyword. Forbidden fields: %s', implode( ', ', $forbidden ) ),
+			array( 'status' => 400, 'fields' => $forbidden )
+		);
+	}
+
+	return webo_rank_math_with_site( $arguments['site_id'] ?? 0, function () use ( $arguments ) {
+		$post_id = webo_mcp_rank_math_resolve_tool_post_id( $arguments );
+		if ( is_wp_error( $post_id ) ) {
+			return $post_id;
+		}
+
+		$post    = get_post( $post_id );
+		$updates = webo_mcp_rank_math_extract_quick_meta_updates( $arguments );
+		if ( empty( $updates ) ) {
+			return new WP_Error( 'webo_mcp_rank_math_no_quick_fields', 'At least one of title, description, or focus_keyword is required.', array( 'status' => 400 ) );
+		}
+
+		$keys   = array_keys( $updates );
+		$before = webo_rank_math_collect_post_meta( $post_id, $keys );
+
+		foreach ( $updates as $key => $value ) {
+			update_post_meta( $post_id, $key, $value );
+		}
+		webo_mcp_rank_math_clear_post_meta_caches( $post_id );
+
+		$after = webo_rank_math_collect_post_meta( $post_id, $keys );
+		$diff  = webo_mcp_rank_math_build_meta_diff( $before, $after, $keys );
+		$changed_count = count(
+			array_filter(
+				$diff,
+				static function ( $item ) {
+					return ! empty( $item['changed'] );
+				}
+			)
+		);
+
+		return webo_mcp_mutation_response(
+			array(
+				'dry_run'       => false,
+				'changed'       => $changed_count > 0,
+				'changed_count' => $changed_count,
+				'diff'          => $diff,
+				'context'       => array(
+					'tool'          => 'seo_quick_update',
+					'post_id'       => $post_id,
+					'post_type'     => $post ? $post->post_type : null,
+					'slug'          => $post ? $post->post_name : null,
+					'keys'          => $keys,
+					'updated'       => $changed_count > 0,
+					'updated_count' => $changed_count,
+				),
+			)
+		);
+	} );
+}
+
+/**
+ * Execute internal/admin-only advanced SEO updates.
+ *
+ * @param array<string,mixed> $arguments Tool arguments.
+ * @return array<string,mixed>|\WP_Error
+ */
+function webo_mcp_rank_math_execute_advanced_update_tool( $arguments ) {
+	$meta_updates = webo_mcp_rank_math_extract_public_meta_updates( $arguments );
+	$schema_args  = array_intersect_key(
+		$arguments,
+		array(
+			'action'      => true,
+			'post_id'     => true,
+			'id'          => true,
+			'slug'        => true,
+			'post_type'   => true,
+			'site_id'     => true,
+			'schema'      => true,
+			'schemas'     => true,
+			'schema_key'  => true,
+			'schema_type' => true,
+			'dry_run'     => true,
+			'force'       => true,
+			'delete_all'  => true,
+		)
+	);
+	$schema_handled = false;
+
+	if ( isset( $schema_args['schema'] ) || isset( $schema_args['schemas'] ) ) {
+		$schema_args['action'] = isset( $schema_args['action'] ) ? $schema_args['action'] : 'upsert';
+		$schema_result         = webo_mcp_rank_math_execute_schema_mutate_tool( $schema_args );
+		if ( is_wp_error( $schema_result ) ) {
+			return $schema_result;
+		}
+		$schema_handled = true;
+	}
+
+	if ( empty( $meta_updates ) && ! $schema_handled ) {
+		return new WP_Error(
+			'webo_mcp_rank_math_no_advanced_fields',
+			'seo_advanced_update requires canonical, robots, schema, or social meta fields.',
+			array( 'status' => 400 )
+		);
+	}
+
+	if ( empty( $meta_updates ) ) {
+		return array(
+			'updated' => true,
+			'context' => array(
+				'tool' => 'seo_advanced_update',
+				'mode' => 'schema-only',
+			),
+		);
+	}
+
+	return webo_mcp_rank_math_execute_public_post_meta_tool(
+		'webo-rank-math/post-seo-mutate',
+		array_merge(
+			$arguments,
+			array(
+				'action' => isset( $arguments['action'] ) ? $arguments['action'] : 'update',
+				'force'  => isset( $arguments['force'] ) ? $arguments['force'] : true,
+			)
+		)
+	);
+}
+
+/**
  * Register short public Rank Math post meta tools in WEBO MCP ToolRegistry.
  *
  * @return void
@@ -830,6 +1203,8 @@ function webo_mcp_rank_math_execute_post_seo_mutate_tool( $arguments ) {
 
 function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
 	$map = array(
+		'seo_quick_update'              => array( 'write', 'medium' ),
+		'seo_advanced_update'           => array( 'admin', 'critical' ),
 		'webo-rank-math/post-seo-query'  => array( 'read', 'low' ),
 		'webo-rank-math/post-seo-mutate' => array( 'write', 'medium' ),
 		'webo-rank-math/schema-mutate'   => array( 'delete', 'high' ),
@@ -847,6 +1222,22 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 	webo_mcp_rank_math_bootstrap();
 
 	$tools = array(
+		'seo_quick_update' => array(
+			'description' => 'Update SEO title, meta description and focus keyword for a WordPress post.',
+			'arguments'   => webo_mcp_rank_math_quick_update_tool_arguments(),
+			'callback'    => static function ( array $arguments ) {
+				return webo_mcp_rank_math_execute_quick_update_tool( $arguments );
+			},
+		),
+		'seo_advanced_update' => array(
+			'description' => 'Update advanced SEO metadata for a WordPress post.',
+			'arguments'   => webo_mcp_rank_math_advanced_update_tool_arguments(),
+			'callback'    => static function ( array $arguments ) {
+				return webo_mcp_rank_math_execute_advanced_update_tool( $arguments );
+			},
+			'visibility'  => 'internal',
+			'permission'  => 'manage_options',
+		),
 		'webo-rank-math/post-seo-query' => array(
 			'description' => 'Rank Math post SEO query dispatcher. action: get, audit.',
 			'arguments'   => webo_mcp_rank_math_post_meta_tool_arguments( false ),
@@ -861,7 +1252,7 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 			},
 		),
 		'webo-rank-math/post-seo-mutate' => array(
-			'description' => 'Rank Math post SEO mutation dispatcher. action: update, bulk-upsert, cleanup. Accepts seo_meta with short keys such as title, description, focus_keyword.',
+			'description' => '@deprecated Use seo_quick_update for title, description, and focus_keyword updates. Rank Math post SEO mutation dispatcher. action: update, bulk-upsert, cleanup.',
 			'arguments'   => webo_mcp_rank_math_post_meta_tool_arguments( true, true ),
 			'callback'    => static function ( array $arguments ) {
 				return webo_mcp_rank_math_execute_post_seo_mutate_tool( $arguments );
@@ -882,9 +1273,12 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 			},
 		),
 		'rankmath_update_post_meta' => array(
-			'description' => 'Update whitelisted Rank Math SEO post meta for one post. Accepts seo_meta with short keys. Defaults to dry_run=true; set dry_run=false or force=true to write.',
+			'description' => '@deprecated Use seo_quick_update for title, description, and focus_keyword updates. Update whitelisted Rank Math SEO post meta for one post.',
 			'arguments'   => webo_mcp_rank_math_post_meta_tool_arguments( true, true ),
 			'callback'    => static function ( array $arguments ) {
+				if ( webo_mcp_rank_math_is_quick_only_payload( $arguments ) ) {
+					return webo_mcp_rank_math_execute_quick_update_tool( $arguments );
+				}
 				return webo_mcp_rank_math_execute_public_post_meta_tool( 'rankmath_update_post_meta', $arguments );
 			},
 		),
@@ -902,13 +1296,15 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 				'name'        => $tool_name,
 				'description' => $tool['description'],
 				'category'    => 'rank_math',
-				'visibility'  => 'public',
+				'visibility'  => isset( $tool['visibility'] ) ? (string) $tool['visibility'] : 'public',
 				'arguments'   => $tool['arguments'],
+				'permission'  => isset( $tool['permission'] ) ? (string) $tool['permission'] : '',
 				'meta'        => array(
 					'schema_version' => WEBO_MCP_RANK_MATH_VERSION,
 					'addon'          => 'webo-mcp-rank-math',
+					'deprecated'     => in_array( $tool_name, array( 'rankmath_update_post_meta', 'webo-rank-math/post-seo-mutate' ), true ),
 					'mcp'            => array(
-						'public' => true,
+						'public' => 'internal' !== ( isset( $tool['visibility'] ) ? (string) $tool['visibility'] : 'public' ),
 						'type'   => 'tool',
 					),
 					'webo_mcp'       => array(
@@ -929,6 +1325,37 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 			)
 		);
 	}
+}
+
+/**
+ * Hide deprecated Rank Math mutation tools from public discovery while keeping
+ * exact-name calls backward compatible.
+ *
+ * @param array<string,mixed> $payload          Tools/list payload.
+ * @param bool                $include_internal Whether internal tools are included.
+ * @return array<string,mixed>
+ */
+function webo_mcp_rank_math_filter_public_tools_list_payload( $payload, $include_internal ) {
+	if ( ! is_array( $payload ) || ! empty( $include_internal ) || empty( $payload['tools'] ) || ! is_array( $payload['tools'] ) ) {
+		return $payload;
+	}
+
+	$hidden = array(
+		'rankmath_update_post_meta',
+		'webo-rank-math/post-seo-mutate',
+		'webo-rank-math/schema-mutate',
+	);
+
+	$payload['tools'] = array_values(
+		array_filter(
+			$payload['tools'],
+			static function ( $tool ) use ( $hidden ) {
+				return ! isset( $tool['name'] ) || ! in_array( (string) $tool['name'], $hidden, true );
+			}
+		)
+	);
+
+	return $payload;
 }
 
 /**
@@ -1201,6 +1628,7 @@ add_action( 'init', 'webo_mcp_rank_math_bootstrap', 1 );
 add_action( 'webo_mcp_register_tools', 'webo_mcp_rank_math_register_post_meta_tools_to_core_registry', 30 );
 add_action( 'wp_abilities_api_init', 'webo_mcp_rank_math_register_post_meta_tools_to_core_registry', 30 );
 add_action( 'webo_mcp_loaded', 'webo_mcp_rank_math_bootstrap', 20 );
+add_filter( 'webo_mcp_tools_list_payload', 'webo_mcp_rank_math_filter_public_tools_list_payload', 20, 2 );
 register_activation_hook( __FILE__, 'webo_mcp_rank_math_bump_tools_list_cache' );
 
 add_action( 'admin_notices', function () {
