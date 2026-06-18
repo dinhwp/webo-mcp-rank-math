@@ -827,6 +827,18 @@ function webo_mcp_rank_math_execute_post_seo_mutate_tool( $arguments ) {
  *
  * @return void
  */
+
+function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
+	$map = array(
+		'webo-rank-math/post-seo-query'  => array( 'read', 'low' ),
+		'webo-rank-math/post-seo-mutate' => array( 'write', 'medium' ),
+		'webo-rank-math/schema-mutate'   => array( 'delete', 'high' ),
+		'rankmath_get_post_meta'         => array( 'read', 'low' ),
+		'rankmath_update_post_meta'      => array( 'write', 'medium' ),
+	);
+	return isset( $map[ $tool_name ] ) ? $map[ $tool_name ] : array( 'write', 'medium' );
+}
+
 function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 	if ( ! class_exists( '\WeboMCP\Core\Registry\ToolRegistry' ) ) {
 		return;
@@ -883,6 +895,8 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 			continue;
 		}
 
+		$scope_risk = webo_mcp_rank_math_tool_scope_risk( (string) $tool_name );
+
 		\WeboMCP\Core\Registry\ToolRegistry::register(
 			array(
 				'name'        => $tool_name,
@@ -893,6 +907,15 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 				'meta'        => array(
 					'schema_version' => WEBO_MCP_RANK_MATH_VERSION,
 					'addon'          => 'webo-mcp-rank-math',
+					'mcp'            => array(
+						'public' => true,
+						'type'   => 'tool',
+					),
+					'webo_mcp'       => array(
+						'scope'    => $scope_risk[0],
+						'risk'     => $scope_risk[1],
+						'category' => 'rank_math',
+					),
 				),
 				'callback'    => static function ( array $arguments ) use ( $tool_name, $tool ) {
 					if ( ! function_exists( 'webo_rank_math_with_site' ) ) {
