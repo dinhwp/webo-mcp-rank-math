@@ -1207,7 +1207,7 @@ function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
 		'seo_advanced_update'           => array( 'admin', 'critical' ),
 		'webo-rank-math/post-seo-query'  => array( 'read', 'low' ),
 		'webo-rank-math/post-seo-mutate' => array( 'write', 'medium' ),
-		'webo-rank-math/schema-mutate'   => array( 'delete', 'high' ),
+		'webo-rank-math/schema-mutate'   => array( 'write', 'high' ),
 		'rankmath_get_post_meta'         => array( 'read', 'low' ),
 		'rankmath_update_post_meta'      => array( 'write', 'medium' ),
 	);
