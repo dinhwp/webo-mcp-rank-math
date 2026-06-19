@@ -86,13 +86,15 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 				}
 				$dry_run = webo_rank_math_resolve_dry_run( $input, false );
 				$result  = webo_rank_math_update_post_meta_map( $post_id, $input['seo_meta'], $dry_run );
-				$post = get_post( $post_id );
-				return array_merge( $result, array(
-					'updated'  => ! $dry_run && ! empty( $result['changed'] ),
-					'post_id'  => $post_id,
-					'slug'     => $post ? $post->post_name : null,
-					'seo_meta' => $dry_run ? null : webo_rank_math_collect_post_meta( $post_id ),
-				) );
+				$post    = get_post( $post_id );
+
+				return array_merge(
+					$result,
+					array(
+						'slug'     => $post ? $post->post_name : null,
+						'seo_meta' => $dry_run ? null : webo_rank_math_collect_post_meta( $post_id ),
+					)
+				);
 			} );
 		},
 		'permission_callback' => function ( $input ) {
@@ -135,17 +137,22 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 		),
 		'execute_callback' => function ( $input ) {
 			return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $input ) {
+				$dry_run       = webo_rank_math_resolve_dry_run( $input, false );
 				$stop_on_error = ! empty( $input['stop_on_error'] );
 				$results       = array();
-				$success_count = 0;
 				$failure_count = 0;
+				$planned_count = 0;
 				$stopped_early = false;
 
 				foreach ( (array) $input['items'] as $index => $item ) {
 					$post_id = webo_rank_math_resolve_post_id( $item );
 					if ( ! $post_id ) {
 						$failure_count++;
-						$results[] = array( 'index' => $index, 'success' => false, 'error_code' => 'post_not_found', 'error_message' => 'Post not found by post_id/slug.' );
+						$results[] = array(
+							'index'         => $index,
+							'error_code'    => 'post_not_found',
+							'error_message' => 'Post not found by post_id/slug.',
+						);
 						if ( $stop_on_error ) {
 							$stopped_early = true;
 							break;
@@ -154,25 +161,59 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 					}
 					if ( ! current_user_can( 'edit_post', $post_id ) ) {
 						$failure_count++;
-						$results[] = array( 'index' => $index, 'post_id' => $post_id, 'success' => false, 'error_code' => 'forbidden', 'error_message' => 'Permission denied.' );
+						$results[] = array(
+							'index'         => $index,
+							'post_id'       => $post_id,
+							'error_code'    => 'forbidden',
+							'error_message' => 'Permission denied.',
+						);
 						if ( $stop_on_error ) {
 							$stopped_early = true;
 							break;
 						}
 						continue;
 					}
-					$dry_run = webo_rank_math_resolve_dry_run( $input, false );
+
 					$result = webo_rank_math_update_post_meta_map( $post_id, $item['seo_meta'], $dry_run );
-					$post = get_post( $post_id );
-					$success_count++;
-					$results[] = array_merge( array( 'index' => $index, 'success' => true, 'post_id' => $post_id, 'slug' => $post ? $post->post_name : null ), $result );
+					$post   = get_post( $post_id );
+					$planned_count += (int) ( $result['planned_count'] ?? 0 );
+					$results[]      = array_merge(
+						array(
+							'index'   => $index,
+							'post_id' => $post_id,
+							'slug'    => $post ? $post->post_name : null,
+						),
+						$result
+					);
+				}
+
+				if ( function_exists( 'webo_mcp_mutation_response' ) ) {
+					return webo_mcp_mutation_response(
+						array(
+							'dry_run'       => $dry_run,
+							'would_change'  => $planned_count > 0,
+							'planned_count' => $planned_count,
+							'changed'       => ! $dry_run && $planned_count > 0,
+							'changed_count' => $dry_run ? 0 : $planned_count,
+							'diff'          => array( 'items' => $results ),
+							'context'       => array(
+								'failure_count'  => $failure_count,
+								'processed_count' => count( $results ),
+								'stopped_early'  => $stopped_early,
+							),
+						)
+					);
 				}
 
 				return array(
-					'success_count'  => $success_count,
-					'failure_count'  => $failure_count,
-					'stopped_early'  => $stopped_early,
-					'results'        => $results,
+					'dry_run'         => $dry_run,
+					'executed'        => ! $dry_run,
+					'would_change'    => $planned_count > 0,
+					'planned_count'   => $planned_count,
+					'failure_count'   => $failure_count,
+					'processed_count' => count( $results ),
+					'stopped_early'   => $stopped_early,
+					'results'         => $results,
 				);
 			} );
 		},
@@ -215,13 +256,11 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 				$cleanup = webo_rank_math_cleanup_post_schema_meta( $post_id, ! empty( $input['delete_all'] ), $dry_run );
 
 				return array_merge(
+					$cleanup,
 					array(
-						'updated'   => ! $dry_run && ! empty( $cleanup['deleted_count'] ),
-						'post_id'   => $post_id,
 						'post_type' => $post ? $post->post_type : null,
 						'slug'      => $post ? $post->post_name : null,
-					),
-					$cleanup
+					)
 				);
 			} );
 		},

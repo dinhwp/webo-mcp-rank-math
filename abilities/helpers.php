@@ -320,17 +320,48 @@ function webo_rank_math_cleanup_post_schema_meta( $post_id, $delete_all = false,
 		}
 	}
 
-	return array(
-		'found_count'   => count( (array) $rows ),
-		'dry_run'       => (bool) $dry_run,
-		'executed'      => ! $dry_run,
-		'would_change'  => count( $deleted ) > 0,
-		'planned_count' => count( $deleted ),
-		'deleted_count' => $dry_run ? 0 : count( $deleted ),
-		'kept_count'    => count( $kept ),
-		'deleted'       => $deleted,
-		'kept'          => $kept,
+	if ( function_exists( 'webo_mcp_mutation_response' ) ) {
+		return webo_mcp_mutation_response(
+			array(
+				'dry_run'       => (bool) $dry_run,
+				'would_change'  => count( $deleted ) > 0,
+				'planned_count' => count( $deleted ),
+				'changed'       => ! $dry_run && count( $deleted ) > 0,
+				'changed_count' => $dry_run ? 0 : count( $deleted ),
+				'diff'          => array(
+					'planned_deletions' => $deleted,
+					'kept'              => $kept,
+				),
+				'context'       => array(
+					'found_count'        => count( (array) $rows ),
+					'kept_count'         => count( $kept ),
+					'planned_deletions'  => $deleted,
+					'deleted'            => $deleted,
+					'deleted_count'      => $dry_run ? 0 : count( $deleted ),
+				),
+			)
+		);
+	}
+
+	$response = array(
+		'found_count'        => count( (array) $rows ),
+		'dry_run'            => (bool) $dry_run,
+		'executed'           => ! $dry_run,
+		'would_change'       => count( $deleted ) > 0,
+		'planned_count'      => count( $deleted ),
+		'changed'            => ! $dry_run && count( $deleted ) > 0,
+		'changed_count'      => $dry_run ? 0 : count( $deleted ),
+		'kept_count'         => count( $kept ),
+		'planned_deletions'  => $deleted,
+		'kept'               => $kept,
 	);
+
+	if ( ! $dry_run ) {
+		$response['deleted_count'] = count( $deleted );
+		$response['deleted']       = $deleted;
+	}
+
+	return $response;
 }
 
 function webo_rank_math_audit_schema_meta( $args = array() ) {

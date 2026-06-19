@@ -51,8 +51,14 @@ $cases['cleanup_dry_run'] = webo_rank_math_post_seo_mutate(
 $results = array();
 foreach ( $cases as $name => $result ) {
 	$is_error = is_wp_error( $result );
+	$has_misleading_keys = ! $is_error && (
+		array_key_exists( 'success', (array) $result )
+		|| array_key_exists( 'updated_count', (array) $result )
+		|| array_key_exists( 'deleted_count', (array) $result )
+		|| array_key_exists( 'deleted', (array) $result )
+	);
 	$results[ $name ] = array(
-		'pass'   => ! $is_error && true === ( $result['dry_run'] ?? null ) && false === ( $result['executed'] ?? null ),
+		'pass'   => ! $is_error && true === ( $result['dry_run'] ?? null ) && false === ( $result['executed'] ?? null ) && ! $has_misleading_keys,
 		'result' => $is_error ? array( 'code' => $result->get_error_code(), 'message' => $result->get_error_message() ) : $result,
 	);
 }
