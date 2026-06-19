@@ -164,21 +164,119 @@ function webo_rank_math_collect_user_meta( $user_id, $keys = null ) {
 	return $result;
 }
 
-function webo_rank_math_update_post_meta_map( $post_id, $meta ) {
+function webo_rank_math_resolve_dry_run( $input, $is_dangerous = false ) {
+	if ( function_exists( 'webo_mcp_resolve_mutation_mode' ) ) {
+		$mode = webo_mcp_resolve_mutation_mode( (array) $input, (bool) $is_dangerous );
+		return ! empty( $mode['dry_run'] );
+	}
+
+	if ( ! empty( $input['force'] ) ) {
+		return false;
+	}
+
+	return ! array_key_exists( 'dry_run', (array) $input ) || filter_var( $input['dry_run'], FILTER_VALIDATE_BOOLEAN );
+}
+
+function webo_rank_math_build_post_meta_diff( $before, $after, $keys ) {
+	$diff = array();
+	foreach ( array_values( array_unique( (array) $keys ) ) as $key ) {
+		$old = array_key_exists( $key, (array) $before ) ? $before[ $key ] : null;
+		$new = array_key_exists( $key, (array) $after ) ? $after[ $key ] : null;
+		$diff[ $key ] = array(
+			'before'  => $old,
+			'after'   => $new,
+			'changed' => $old !== $new,
+		);
+	}
+	return $diff;
+}
+
+function webo_rank_math_update_post_meta_map( $post_id, $meta, $dry_run = false ) {
+	$post_id = absint( $post_id );
+	$updates = array();
+
 	foreach ( (array) $meta as $key => $value ) {
 		$k = sanitize_key( $key );
 		if ( $k === '' ) {
 			continue;
 		}
-		if ( $value === null ) {
-			delete_post_meta( $post_id, $k );
+		$updates[ $k ] = $value;
+	}
+
+	$keys   = array_keys( $updates );
+	$before = webo_rank_math_collect_post_meta( $post_id, $keys );
+	$after  = $before;
+
+	foreach ( $updates as $key => $value ) {
+		if ( null === $value ) {
+			unset( $after[ $key ] );
 		} else {
-			update_post_meta( $post_id, $k, $value );
+			$after[ $key ] = $value;
 		}
 	}
+
+	$planned_diff  = webo_rank_math_build_post_meta_diff( $before, $after, $keys );
+	$planned_count = count(
+		array_filter(
+			$planned_diff,
+			static function ( $item ) {
+				return ! empty( $item['changed'] );
+			}
+		)
+	);
+
+	if ( ! $dry_run ) {
+		foreach ( $updates as $key => $value ) {
+			if ( null === $value ) {
+				delete_post_meta( $post_id, $key );
+			} else {
+				update_post_meta( $post_id, $key, $value );
+			}
+		}
+		$after = webo_rank_math_collect_post_meta( $post_id, $keys );
+	}
+
+	$diff          = $dry_run ? $planned_diff : webo_rank_math_build_post_meta_diff( $before, $after, $keys );
+	$changed_count = count(
+		array_filter(
+			$diff,
+			static function ( $item ) {
+				return ! empty( $item['changed'] );
+			}
+		)
+	);
+
+	if ( function_exists( 'webo_mcp_mutation_response' ) ) {
+		return webo_mcp_mutation_response(
+			array(
+				'dry_run'       => (bool) $dry_run,
+				'would_change'  => $planned_count > 0,
+				'planned_count' => $planned_count,
+				'changed'       => ! $dry_run && $changed_count > 0,
+				'changed_count' => $dry_run ? 0 : $changed_count,
+				'diff'          => $diff,
+				'context'       => array(
+					'post_id'       => $post_id,
+					'keys'          => $keys,
+					'updated'       => ! $dry_run && $changed_count > 0,
+					'updated_count' => $dry_run ? 0 : $changed_count,
+				),
+			)
+		);
+	}
+
+	return array(
+		'dry_run'       => (bool) $dry_run,
+		'executed'      => ! $dry_run,
+		'would_change'  => $planned_count > 0,
+		'planned_count' => $planned_count,
+		'changed'       => ! $dry_run && $changed_count > 0,
+		'changed_count' => $dry_run ? 0 : $changed_count,
+		'diff'          => $diff,
+	);
 }
 
-function webo_rank_math_cleanup_post_schema_meta( $post_id, $delete_all = false ) {
+function webo_rank_math_cleanup_post_schema_meta( $post_id, $delete_all = false, $dry_run = false ) {
 	global $wpdb;
 
 	$post_id = absint( $post_id );
@@ -204,7 +302,9 @@ function webo_rank_math_cleanup_post_schema_meta( $post_id, $delete_all = false 
 		$bad   = ! is_array( $value ) || empty( $value['@type'] );
 
 		if ( $delete_all || $bad ) {
-			delete_metadata_by_mid( 'post', (int) $row['meta_id'] );
+			if ( ! $dry_run ) {
+				delete_metadata_by_mid( 'post', (int) $row['meta_id'] );
+			}
 			$deleted[] = array(
 				'meta_id'    => (int) $row['meta_id'],
 				'meta_key'   => $key,
@@ -222,7 +322,11 @@ function webo_rank_math_cleanup_post_schema_meta( $post_id, $delete_all = false 
 
 	return array(
 		'found_count'   => count( (array) $rows ),
-		'deleted_count' => count( $deleted ),
+		'dry_run'       => (bool) $dry_run,
+		'executed'      => ! $dry_run,
+		'would_change'  => count( $deleted ) > 0,
+		'planned_count' => count( $deleted ),
+		'deleted_count' => $dry_run ? 0 : count( $deleted ),
 		'kept_count'    => count( $kept ),
 		'deleted'       => $deleted,
 		'kept'          => $kept,

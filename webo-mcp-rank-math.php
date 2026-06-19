@@ -1089,16 +1089,30 @@ function webo_mcp_rank_math_execute_quick_update_tool( $arguments ) {
 			return new WP_Error( 'webo_mcp_rank_math_no_quick_fields', 'At least one of title, description, or focus_keyword is required.', array( 'status' => 400 ) );
 		}
 
-		$keys   = array_keys( $updates );
-		$before = webo_rank_math_collect_post_meta( $post_id, $keys );
+		$mode    = webo_mcp_resolve_mutation_mode( $arguments, false );
+		$dry_run = ! empty( $mode['dry_run'] );
+		$keys    = array_keys( $updates );
+		$before  = webo_rank_math_collect_post_meta( $post_id, $keys );
+		$planned = array_merge( $before, $updates );
+		$diff    = webo_mcp_rank_math_build_meta_diff( $before, $planned, $keys );
+		$planned_count = count(
+			array_filter(
+				$diff,
+				static function ( $item ) {
+					return ! empty( $item['changed'] );
+				}
+			)
+		);
 
-		foreach ( $updates as $key => $value ) {
-			update_post_meta( $post_id, $key, $value );
+		if ( ! $dry_run ) {
+			foreach ( $updates as $key => $value ) {
+				update_post_meta( $post_id, $key, $value );
+			}
+			webo_mcp_rank_math_clear_post_meta_caches( $post_id );
+			$after = webo_rank_math_collect_post_meta( $post_id, $keys );
+			$diff  = webo_mcp_rank_math_build_meta_diff( $before, $after, $keys );
 		}
-		webo_mcp_rank_math_clear_post_meta_caches( $post_id );
 
-		$after = webo_rank_math_collect_post_meta( $post_id, $keys );
-		$diff  = webo_mcp_rank_math_build_meta_diff( $before, $after, $keys );
 		$changed_count = count(
 			array_filter(
 				$diff,
@@ -1110,9 +1124,11 @@ function webo_mcp_rank_math_execute_quick_update_tool( $arguments ) {
 
 		return webo_mcp_mutation_response(
 			array(
-				'dry_run'       => false,
-				'changed'       => $changed_count > 0,
-				'changed_count' => $changed_count,
+				'dry_run'       => $dry_run,
+				'would_change'  => $planned_count > 0,
+				'planned_count' => $planned_count,
+				'changed'       => ! $dry_run && $changed_count > 0,
+				'changed_count' => $dry_run ? 0 : $changed_count,
 				'diff'          => $diff,
 				'context'       => array(
 					'tool'          => 'seo_quick_update',
@@ -1120,8 +1136,8 @@ function webo_mcp_rank_math_execute_quick_update_tool( $arguments ) {
 					'post_type'     => $post ? $post->post_type : null,
 					'slug'          => $post ? $post->post_name : null,
 					'keys'          => $keys,
-					'updated'       => $changed_count > 0,
-					'updated_count' => $changed_count,
+					'updated'       => ! $dry_run && $changed_count > 0,
+					'updated_count' => $dry_run ? 0 : $changed_count,
 				),
 			)
 		);

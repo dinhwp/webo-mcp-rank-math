@@ -67,6 +67,7 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 			'required'   => array( 'seo_meta' ),
 			'properties' => array_merge( $schema_post_id_slug, array(
 				'seo_meta' => array( 'type' => 'object', 'additionalProperties' => true ),
+				'dry_run'  => array( 'type' => 'boolean', 'default' => true ),
 			), $schema_site_id ),
 			'oneOf' => array(
 				array( 'required' => array( 'post_id' ) ),
@@ -83,14 +84,15 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 				if ( ! current_user_can( 'edit_post', $post_id ) ) {
 					return new WP_Error( 'forbidden', 'Permission denied for this post.', array( 'status' => 403 ) );
 				}
-				webo_rank_math_update_post_meta_map( $post_id, $input['seo_meta'] );
+				$dry_run = webo_rank_math_resolve_dry_run( $input, false );
+				$result  = webo_rank_math_update_post_meta_map( $post_id, $input['seo_meta'], $dry_run );
 				$post = get_post( $post_id );
-				return array(
-					'updated'  => true,
+				return array_merge( $result, array(
+					'updated'  => ! $dry_run && ! empty( $result['changed'] ),
 					'post_id'  => $post_id,
 					'slug'     => $post ? $post->post_name : null,
-					'seo_meta' => webo_rank_math_collect_post_meta( $post_id ),
-				);
+					'seo_meta' => $dry_run ? null : webo_rank_math_collect_post_meta( $post_id ),
+				) );
 			} );
 		},
 		'permission_callback' => function ( $input ) {
@@ -127,6 +129,7 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 					),
 				),
 				'stop_on_error' => array( 'type' => 'boolean', 'default' => false ),
+				'dry_run'       => array( 'type' => 'boolean', 'default' => true ),
 			) ),
 			'additionalProperties' => false,
 		),
@@ -158,10 +161,11 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 						}
 						continue;
 					}
-					webo_rank_math_update_post_meta_map( $post_id, $item['seo_meta'] );
+					$dry_run = webo_rank_math_resolve_dry_run( $input, false );
+					$result = webo_rank_math_update_post_meta_map( $post_id, $item['seo_meta'], $dry_run );
 					$post = get_post( $post_id );
 					$success_count++;
-					$results[] = array( 'index' => $index, 'success' => true, 'post_id' => $post_id, 'slug' => $post ? $post->post_name : null );
+					$results[] = array_merge( array( 'index' => $index, 'success' => true, 'post_id' => $post_id, 'slug' => $post ? $post->post_name : null ), $result );
 				}
 
 				return array(
@@ -188,6 +192,7 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 			'type'       => 'object',
 			'properties' => array_merge( $schema_post_id_slug, array(
 				'delete_all' => array( 'type' => 'boolean', 'default' => false ),
+				'dry_run'    => array( 'type' => 'boolean', 'default' => true ),
 			), $schema_site_id ),
 			'oneOf' => array(
 				array( 'required' => array( 'post_id' ) ),
@@ -206,11 +211,12 @@ add_action( 'wp_abilities_api_init', function () use ( $schema_site_id, $schema_
 				}
 
 				$post    = get_post( $post_id );
-				$cleanup = webo_rank_math_cleanup_post_schema_meta( $post_id, ! empty( $input['delete_all'] ) );
+				$dry_run = webo_rank_math_resolve_dry_run( $input, ! empty( $input['delete_all'] ) );
+				$cleanup = webo_rank_math_cleanup_post_schema_meta( $post_id, ! empty( $input['delete_all'] ), $dry_run );
 
 				return array_merge(
 					array(
-						'updated'   => true,
+						'updated'   => ! $dry_run && ! empty( $cleanup['deleted_count'] ),
 						'post_id'   => $post_id,
 						'post_type' => $post ? $post->post_type : null,
 						'slug'      => $post ? $post->post_name : null,

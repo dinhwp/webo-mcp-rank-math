@@ -180,8 +180,9 @@ function webo_rank_math_update_post_seo_meta( $input ) {
 			return $post_id;
 		}
 		$seo_meta = $input['seo_meta'] ?? array();
-		$updated  = webo_rank_math_update_post_meta_map( $post_id, $seo_meta );
-		return array( 'post_id' => $post_id, 'updated' => $updated );
+		$dry_run  = webo_rank_math_resolve_dry_run( $input, false );
+		$result   = webo_rank_math_update_post_meta_map( $post_id, $seo_meta, $dry_run );
+		return array_merge( array( 'post_id' => $post_id ), $result );
 	} );
 }
 
@@ -193,9 +194,11 @@ function webo_rank_math_update_post_seo_meta( $input ) {
  */
 function webo_rank_math_bulk_upsert_post_seo_meta( $input ) {
 	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $input ) {
-		$posts = $input['posts'] ?? array();
-		$skip_missing = $input['skip_missing'] ?? false;
-		$results = array();
+		$posts         = $input['posts'] ?? ( $input['items'] ?? array() );
+		$skip_missing  = $input['skip_missing'] ?? false;
+		$dry_run       = webo_rank_math_resolve_dry_run( $input, false );
+		$results       = array();
+		$planned_count = 0;
 
 		foreach ( (array) $posts as $post_data ) {
 			$post_id = isset( $post_data['post_id'] ) ? intval( $post_data['post_id'] ) : null;
@@ -213,11 +216,25 @@ function webo_rank_math_bulk_upsert_post_seo_meta( $input ) {
 			}
 
 			$seo_meta = $post_data['seo_meta'] ?? array();
-			$updated  = webo_rank_math_update_post_meta_map( $post_id, $seo_meta );
-			$results[] = array( 'post_id' => $post_id, 'updated' => $updated );
+			$result   = webo_rank_math_update_post_meta_map( $post_id, $seo_meta, $dry_run );
+			$planned_count += isset( $result['planned_count'] ) ? (int) $result['planned_count'] : 0;
+			$results[] = array_merge( array( 'post_id' => $post_id ), $result );
 		}
 
-		return array( 'count' => count( $results ), 'results' => $results );
+		return webo_mcp_mutation_response(
+			array(
+				'dry_run'       => $dry_run,
+				'would_change'  => $planned_count > 0,
+				'planned_count' => $planned_count,
+				'changed'       => ! $dry_run && $planned_count > 0,
+				'changed_count' => $dry_run ? 0 : $planned_count,
+				'diff'          => $results,
+				'context'       => array(
+					'action' => 'bulk-upsert',
+					'count'  => count( $results ),
+				),
+			)
+		);
 	} );
 }
 
@@ -228,9 +245,21 @@ function webo_rank_math_bulk_upsert_post_seo_meta( $input ) {
  * @return array<string, mixed>|\WP_Error
  */
 function webo_rank_math_cleanup_post_schema_meta_handler( $input ) {
-	$args = isset( $input['post_id'] ) ? array( 'post_id' => intval( $input['post_id'] ) ) : $input;
-	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $args ) {
-		return webo_rank_math_cleanup_post_schema_meta( $args['post_id'] ?? 0, $args['delete_all'] ?? false );
+	$args = isset( $input['post_id'] ) ? array_merge( $input, array( 'post_id' => intval( $input['post_id'] ) ) ) : $input;
+	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $input, $args ) {
+		$dry_run = webo_rank_math_resolve_dry_run( $input, ! empty( $args['delete_all'] ) );
+		$cleanup = webo_rank_math_cleanup_post_schema_meta( $args['post_id'] ?? 0, $args['delete_all'] ?? false, $dry_run );
+		return webo_mcp_mutation_response(
+			array(
+				'dry_run'       => $dry_run,
+				'would_change'  => ! empty( $cleanup['would_change'] ),
+				'planned_count' => isset( $cleanup['planned_count'] ) ? (int) $cleanup['planned_count'] : 0,
+				'changed'       => ! $dry_run && ! empty( $cleanup['deleted_count'] ),
+				'changed_count' => $dry_run ? 0 : ( isset( $cleanup['deleted_count'] ) ? (int) $cleanup['deleted_count'] : 0 ),
+				'diff'          => $cleanup['deleted'] ?? array(),
+				'context'       => array_merge( array( 'action' => 'cleanup' ), $cleanup ),
+			)
+		);
 	} );
 }
 
