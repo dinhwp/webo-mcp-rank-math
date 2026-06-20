@@ -1625,9 +1625,9 @@ add_action(
 						'scope' => 'write',
 						'risk'  => 'high',
 						'action_scopes' => array(
-							'upsert' => 'write',
-							'delete' => 'delete',
-							'cleanup' => 'delete',
+							'upsert'  => 'write',
+							'delete'  => 'write',
+							'cleanup' => 'write',
 						),
 						'action_risks' => array(
 							'upsert' => 'medium',
