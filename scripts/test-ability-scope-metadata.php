@@ -47,12 +47,15 @@ webo_rank_math_scope_test_assert(
 );
 
 $source = (string) file_get_contents( __DIR__ . '/../webo-mcp-rank-math.php' );
+preg_match( "/'action_scopes'\s*=>\s*array\s*\((.*?)\),/s", $source, $matches );
+
+webo_rank_math_scope_test_assert( ! empty( $matches[1] ), 'schema-mutate action scopes block exists in plugin source' );
 webo_rank_math_scope_test_assert(
-	false !== strpos( $source, "'delete'  => 'write'" ),
+	! empty( $matches[1] ) && false !== strpos( $matches[1], "'delete'  => 'write'" ),
 	'schema-mutate delete action scope is write in plugin source'
 );
 webo_rank_math_scope_test_assert(
-	false === strpos( $source, "'delete'  => 'delete'" ),
+	empty( $matches[1] ) || false === strpos( $matches[1], "'delete'  => 'delete'" ),
 	'schema-mutate delete action scope is not invalid delete in plugin source'
 );
 
