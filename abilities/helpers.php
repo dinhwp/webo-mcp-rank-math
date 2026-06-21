@@ -107,11 +107,21 @@ function webo_rank_math_resolve_post_id( $input ) {
  * Run callback with optional multisite switch; restore in finally.
  * Returns WP_Error from switch or callback result.
  *
- * @param int    $site_id   Site ID (0 = current).
+ * @param int|array $site_context Site ID (0 = current) or full tool arguments.
  * @param callable $callback function() { return result; }
  * @return mixed|WP_Error
  */
-function webo_rank_math_with_site( $site_id, $callback ) {
+function webo_rank_math_with_site( $site_context, $callback ) {
+	if ( is_array( $site_context ) && function_exists( 'webo_mcp_with_blog_context' ) ) {
+		return webo_mcp_with_blog_context(
+			$site_context,
+			static function () use ( $callback ) {
+				return $callback();
+			}
+		);
+	}
+
+	$site_id = is_array( $site_context ) ? ( $site_context['site_id'] ?? 0 ) : $site_context;
 	$context = function_exists( 'webo_mcp_multisite_switch_to_site' )
 		? webo_mcp_multisite_switch_to_site( $site_id )
 		: array( 'switched' => false );

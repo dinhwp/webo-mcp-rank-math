@@ -130,6 +130,34 @@ function webo_mcp_rank_math_public_post_meta_aliases() {
 }
 
 /**
+ * Shared site selector schema for multisite-aware Rank Math tools.
+ *
+ * @return array<string,array<string,mixed>>
+ */
+function webo_mcp_rank_math_site_context_arguments() {
+	return array(
+		'site_id' => array(
+			'type'     => 'integer',
+			'required' => false,
+			'min'      => 1,
+		),
+		'blog_id' => array(
+			'type'     => 'integer',
+			'required' => false,
+			'min'      => 1,
+		),
+		'domain'  => array(
+			'type'     => 'string',
+			'required' => false,
+		),
+		'url'     => array(
+			'type'     => 'string',
+			'required' => false,
+		),
+	);
+}
+
+/**
  * ToolRegistry argument schema for AI-safe quick SEO updates.
  *
  * @return array<string,array<string,mixed>>
@@ -155,11 +183,7 @@ function webo_mcp_rank_math_quick_update_tool_arguments() {
 			'required' => false,
 			'default'  => 'post',
 		),
-		'site_id' => array(
-			'type'     => 'integer',
-			'required' => false,
-			'min'      => 1,
-		),
+	) + webo_mcp_rank_math_site_context_arguments() + array(
 		'title' => array(
 			'type'     => 'string',
 			'required' => false,
@@ -267,12 +291,7 @@ function webo_mcp_rank_math_post_meta_tool_arguments( $include_update_fields = f
 			'required' => false,
 			'default'  => 'post',
 		),
-		'site_id' => array(
-			'type'     => 'integer',
-			'required' => false,
-			'min'      => 1,
-		),
-	);
+	) + webo_mcp_rank_math_site_context_arguments();
 
 	if ( ! $include_update_fields ) {
 		$arguments['keys'] = array(
@@ -741,7 +760,7 @@ function webo_mcp_rank_math_extract_schema_updates( $arguments ) {
  * @return array<string,mixed>|\WP_Error
  */
 function webo_mcp_rank_math_execute_schema_mutate_tool( $arguments ) {
-	return webo_rank_math_with_site( $arguments['site_id'] ?? 0, function () use ( $arguments ) {
+	return webo_rank_math_with_site( $arguments, function () use ( $arguments ) {
 		$post_id = webo_mcp_rank_math_resolve_tool_post_id( $arguments );
 		if ( is_wp_error( $post_id ) ) {
 			return $post_id;
@@ -945,7 +964,7 @@ function webo_mcp_rank_math_clear_post_meta_caches( $post_id ) {
  * @return array<string,mixed>|\WP_Error
  */
 function webo_mcp_rank_math_execute_public_post_meta_tool( $tool_name, $arguments ) {
-	return webo_rank_math_with_site( $arguments['site_id'] ?? 0, function () use ( $tool_name, $arguments ) {
+	return webo_rank_math_with_site( $arguments, function () use ( $tool_name, $arguments ) {
 		$post_id = webo_mcp_rank_math_resolve_tool_post_id( $arguments );
 		if ( is_wp_error( $post_id ) ) {
 			return $post_id;
@@ -1077,7 +1096,7 @@ function webo_mcp_rank_math_execute_quick_update_tool( $arguments ) {
 		);
 	}
 
-	return webo_rank_math_with_site( $arguments['site_id'] ?? 0, function () use ( $arguments ) {
+	return webo_rank_math_with_site( $arguments, function () use ( $arguments ) {
 		$post_id = webo_mcp_rank_math_resolve_tool_post_id( $arguments );
 		if ( is_wp_error( $post_id ) ) {
 			return $post_id;
@@ -1575,6 +1594,9 @@ add_action(
 						'slug'        => array( 'type' => 'string' ),
 						'post_type'   => array( 'type' => 'string', 'default' => 'post' ),
 						'site_id'     => array( 'type' => 'integer', 'minimum' => 1 ),
+						'blog_id'     => array( 'type' => 'integer', 'minimum' => 1 ),
+						'domain'      => array( 'type' => 'string' ),
+						'url'         => array( 'type' => 'string' ),
 						'schema_key'  => array(
 							'type'        => 'string',
 							'description' => 'Rank Math schema meta key, for example rank_math_schema_Article.',
