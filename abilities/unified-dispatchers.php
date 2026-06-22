@@ -179,6 +179,13 @@ function webo_rank_math_update_post_seo_meta( $input ) {
 		if ( is_wp_error( $post_id ) ) {
 			return $post_id;
 		}
+		if ( empty( $post_id ) ) {
+			return new \WP_Error(
+				'webo_mcp_rank_math_post_not_found',
+				'Provide a valid post_id (>= 1) or a resolvable slug; no target post could be resolved.',
+				array( 'status' => 400 )
+			);
+		}
 		$seo_meta = $input['seo_meta'] ?? array();
 		$dry_run  = webo_rank_math_resolve_dry_run( $input, false );
 		$result   = webo_rank_math_update_post_meta_map( $post_id, $seo_meta, $dry_run );
@@ -798,7 +805,7 @@ add_action( 'wp_abilities_api_init', function () {
 			'type'                 => 'object',
 			'properties'           => array(
 				'action'       => array( 'type' => 'string', 'description' => 'Mutation action.' ),
-				'post_id'      => array( 'type' => 'integer', 'minimum' => 1 ),
+				'post_id'      => array( 'type' => 'integer', 'minimum' => 0, 'description' => 'Target post id. Use 0 or omit to resolve the post by slug instead.' ),
 				'slug'         => array( 'type' => 'string' ),
 				'post_type'    => array( 'type' => 'string', 'default' => 'post' ),
 				'seo_meta'     => array( 'type' => 'object', 'additionalProperties' => true ),

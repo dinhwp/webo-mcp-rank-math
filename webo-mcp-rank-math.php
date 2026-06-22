@@ -167,12 +167,12 @@ function webo_mcp_rank_math_quick_update_tool_arguments() {
 		'post_id' => array(
 			'type'     => 'integer',
 			'required' => false,
-			'min'      => 1,
+			'min'      => 0,
 		),
 		'id' => array(
 			'type'     => 'integer',
 			'required' => false,
-			'min'      => 1,
+			'min'      => 0,
 		),
 		'slug' => array(
 			'type'     => 'string',
