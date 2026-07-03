@@ -65,17 +65,110 @@ function webo_rank_math_get_options( $input ) {
  */
 function webo_rank_math_update_options( $input ) {
 	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $input ) {
+		$options = webo_rank_math_normalize_option_updates( $input );
+		if ( empty( $options ) ) {
+			return new WP_Error(
+				'webo_mcp_rank_math_no_options',
+				'No allowed Rank Math option updates were provided. Send options keyed by rank-math-options-* or groups such as general, titles, sitemap, social.'
+			);
+		}
+
 		$updated = array();
-		foreach ( (array) $input['options'] as $name => $value ) {
+		$diff    = array();
+		foreach ( $options as $name => $value ) {
 			$k = sanitize_key( $name );
 			if ( $k === '' || ! webo_rank_math_is_allowed_option_name( $k ) ) {
 				continue;
 			}
+			$before = get_option( $k, null );
 			update_option( $k, $value );
-			$updated[ $k ] = get_option( $k );
+			$after       = get_option( $k );
+			$updated[ $k ] = $after;
+			$diff[ $k ]    = array(
+				'before'  => $before,
+				'after'   => $after,
+				'changed' => $before !== $after,
+			);
 		}
-		return array( 'updated_count' => count( $updated ), 'options' => $updated );
+
+		if ( empty( $updated ) ) {
+			return new WP_Error(
+				'webo_mcp_rank_math_no_allowed_options',
+				'Rank Math option updates were present, but none matched the allowed option names.'
+			);
+		}
+
+		return array(
+			'success'       => true,
+			'updated_count' => count( $updated ),
+			'options'       => $updated,
+			'diff'          => $diff,
+		);
 	} );
+}
+
+/**
+ * Normalize flexible MCP payloads into real Rank Math option names.
+ *
+ * @param array<string, mixed> $input Input data.
+ * @return array<string, mixed>
+ */
+function webo_rank_math_normalize_option_updates( $input ) {
+	$input = (array) $input;
+	if ( isset( $input['parameters'] ) && is_array( $input['parameters'] ) ) {
+		$input = array_merge( $input['parameters'], $input );
+		unset( $input['parameters'] );
+	}
+
+	$raw = array();
+	foreach ( array( 'options', 'option_updates', 'settings', 'groups' ) as $key ) {
+		if ( isset( $input[ $key ] ) && is_array( $input[ $key ] ) ) {
+			$raw = array_merge( $raw, $input[ $key ] );
+		}
+	}
+
+	foreach ( $input as $key => $value ) {
+		if ( in_array( $key, array( 'action', 'site_id', 'blog_id', 'dry_run', 'force' ), true ) ) {
+			continue;
+		}
+		if ( is_array( $value ) && ( webo_rank_math_option_group_to_name( $key ) || webo_rank_math_is_allowed_option_name( sanitize_key( $key ) ) ) ) {
+			$raw[ $key ] = $value;
+		}
+	}
+
+	$options = array();
+	foreach ( $raw as $name => $value ) {
+		$option_name = webo_rank_math_option_group_to_name( (string) $name ) ?: sanitize_key( (string) $name );
+		if ( $option_name === '' || ! webo_rank_math_is_allowed_option_name( $option_name ) ) {
+			continue;
+		}
+
+		if ( is_array( $value ) && webo_rank_math_option_group_to_name( (string) $name ) ) {
+			$current = get_option( $option_name, array() );
+			$options[ $option_name ] = array_merge( is_array( $current ) ? $current : array(), $value );
+			continue;
+		}
+
+		$options[ $option_name ] = $value;
+	}
+
+	return $options;
+}
+
+function webo_rank_math_option_group_to_name( $group ) {
+	$key = sanitize_key( str_replace( ' ', '-', (string) $group ) );
+	$map = array(
+		'general'          => 'rank-math-options-general',
+		'titles'           => 'rank-math-options-titles',
+		'titles-meta'      => 'rank-math-options-titles',
+		'sitemap'          => 'rank-math-options-sitemap',
+		'sitemaps'         => 'rank-math-options-sitemap',
+		'social'           => 'rank-math-options-social',
+		'instant-indexing' => 'rank-math-options-instant-indexing',
+		'instant_indexing' => 'rank-math-options-instant-indexing',
+	);
+
+	return $map[ $key ] ?? null;
 }
 
 /**
@@ -100,12 +193,74 @@ function webo_rank_math_get_modules( $input = array() ) {
  */
 function webo_rank_math_update_modules( $input ) {
 	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $input ) {
+		$raw_modules = $input['modules'] ?? ( $input['active_modules'] ?? array() );
+		if ( isset( $input['parameters']['modules'] ) && is_array( $input['parameters']['modules'] ) ) {
+			$raw_modules = $input['parameters']['modules'];
+		}
 		$modules = array_values( array_unique( array_filter( array_map( function ( $v ) {
 			return sanitize_key( (string) $v );
-		}, (array) $input['modules'] ) ) ) );
+		}, (array) $raw_modules ) ) ) );
 		sort( $modules );
 		update_option( 'rank_math_modules', $modules );
+		webo_rank_math_create_module_tables( $modules );
 		return array( 'updated' => true, 'count' => count( $modules ), 'modules' => $modules );
+	} );
+}
+
+function webo_rank_math_create_module_tables( $modules ) {
+	if ( class_exists( '\RankMath\Installer' ) && method_exists( '\RankMath\Installer', 'create_tables' ) ) {
+		\RankMath\Installer::create_tables( (array) $modules );
+	}
+}
+
+function webo_rank_math_apply_basic_seo_settings( $input ) {
+	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () {
+		$modules = array_values( array_unique( array_merge(
+			(array) get_option( 'rank_math_modules', array() ),
+			array( 'seo-analysis', 'sitemap', 'rich-snippet', 'instant-indexing', 'redirections', '404-monitor', 'link-counter' )
+		) ) );
+		sort( $modules );
+		webo_rank_math_create_module_tables( $modules );
+
+		$general = (array) get_option( 'rank-math-options-general', array() );
+		$titles  = (array) get_option( 'rank-math-options-titles', array() );
+		$sitemap = (array) get_option( 'rank-math-options-sitemap', array() );
+		$social  = (array) get_option( 'rank-math-options-social', array() );
+
+		$updates = array(
+			'rank_math_modules'           => $modules,
+			'rank-math-options-general'   => array_merge( $general, array(
+				'attachment_redirect_urls'            => 'on',
+				'new_window_external_links'           => 'on',
+				'404_monitor_mode'                    => 'simple',
+				'404_monitor_ignore_query_parameters' => 'on',
+				'redirections_header_code'            => '301',
+				'redirections_debug'                  => 'off',
+			) ),
+			'rank-math-options-titles'    => array_merge( $titles, array(
+				'author_custom_robots'       => 'on',
+				'author_robots'              => array( 'noindex' ),
+				'disable_date_archives'      => 'on',
+				'date_archive_robots'        => array( 'noindex' ),
+				'noindex_search'             => 'on',
+				'noindex_empty_taxonomies'   => 'on',
+				'noindex_password_protected' => 'off',
+				'twitter_card_type'          => 'summary_large_image',
+				'homepage_custom_robots'     => 'off',
+			) ),
+			'rank-math-options-sitemap'   => array_merge( $sitemap, array(
+				'items_per_page'         => 200,
+				'include_images'         => 'on',
+				'include_featured_image' => 'on',
+				'authors_sitemap'        => 'off',
+			) ),
+			'rank-math-options-social'    => array_merge( $social, array(
+				'open_graph_image' => $social['open_graph_image'] ?? '',
+			) ),
+		);
+
+		$input = array( 'options' => $updates );
+		return webo_rank_math_update_options( $input );
 	} );
 }
 
@@ -572,6 +727,10 @@ function webo_rank_math_config_mutate( $input ) {
 		'update-options'       => webo_rank_math_update_options( $input ),
 		'update-modules'       => webo_rank_math_update_modules( $input ),
 		'flush-sitemap-cache'  => webo_rank_math_flush_sitemap_cache( $input ),
+		'apply-basic-seo',
+		'optimize-basic',
+		'optimize-basic-settings',
+		'seo-baseline'         => webo_rank_math_apply_basic_seo_settings( $input ),
 		default               => new WP_Error( 'webo_mcp_invalid_action', sprintf( 'Unknown config-mutate action: %s', $action ) ),
 	};
 }
@@ -748,7 +907,7 @@ add_action( 'wp_abilities_api_init', function () {
 	// Config mutate
 	wp_register_ability( 'webo-rank-math/config-mutate', array(
 		'label'       => 'Rank Math Config Mutation',
-		'description' => 'Unified Rank Math configuration mutation. action: update-options, update-modules, flush-sitemap-cache.',
+		'description' => 'Unified Rank Math configuration mutation. action: update-options, update-modules, flush-sitemap-cache, apply-basic-seo.',
 		'category'    => 'webo-rank-math',
 		'input_schema' => array(
 			'type'                 => 'object',
