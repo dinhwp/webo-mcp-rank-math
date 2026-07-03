@@ -5,7 +5,7 @@
  * Plugin Name: WEBO MCP - Rank Math Addon
  * Plugin URI: https://webomcp.com
  * Description: Rank Math SEO management abilities addon for WEBO MCP.
- * Version: 1.0.16
+ * Version: 1.0.17
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: webo-mcp, seo-by-rank-math
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'WEBO_MCP_RANK_MATH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WEBO_MCP_RANK_MATH_URL', plugin_dir_url( __FILE__ ) );
-define( 'WEBO_MCP_RANK_MATH_VERSION', '1.0.16' );
+define( 'WEBO_MCP_RANK_MATH_VERSION', '1.0.17' );
 if ( ! defined( 'WEBO_MCP_LICENSE_STORE_URL' ) ) {
 	define( 'WEBO_MCP_LICENSE_STORE_URL', 'https://webomcp.com' );
 }
@@ -1240,6 +1240,8 @@ function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
 	$map = array(
 		'seo_quick_update'              => array( 'write', 'medium' ),
 		'seo_advanced_update'           => array( 'admin', 'critical' ),
+		'webo-rank-math/config-query'   => array( 'read', 'low' ),
+		'webo-rank-math/config-mutate'  => array( 'admin', 'critical' ),
 		'webo-rank-math/post-seo-query'  => array( 'read', 'low' ),
 		'webo-rank-math/post-seo-mutate' => array( 'write', 'medium' ),
 		'webo-rank-math/schema-mutate'   => array( 'write', 'high' ),
@@ -1375,16 +1377,22 @@ function webo_mcp_rank_math_filter_public_tools_list_payload( $payload, $include
 		return $payload;
 	}
 
+	$public_dispatchers = webo_mcp_rank_math_public_mcp_ability_names();
+
 	$payload['tools'] = array_values(
 		array_filter(
 			$payload['tools'],
-			static function ( $tool ) {
+			static function ( $tool ) use ( $public_dispatchers ) {
 				if ( ! isset( $tool['name'] ) ) {
 					return true;
 				}
 
 				$name = (string) $tool['name'];
 				if ( 'seo_quick_update' === $name ) {
+					return true;
+				}
+
+				if ( in_array( $name, $public_dispatchers, true ) ) {
 					return true;
 				}
 
