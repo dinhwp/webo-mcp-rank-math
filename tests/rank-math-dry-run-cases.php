@@ -6,6 +6,12 @@
  * wp eval-file tests/rank-math-dry-run-cases.php --allow-root
  */
 
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $data, $options = 0, $depth = 512 ) {
+		return json_encode( $data, $options, $depth );
+	}
+}
+
 if ( ! function_exists( 'webo_mcp_rank_math_execute_post_seo_mutate_tool' ) || ! function_exists( 'webo_rank_math_post_seo_mutate' ) ) {
 	echo wp_json_encode(
 		array( 'error' => 'Rank Math mutation handlers are not loaded.' ),
