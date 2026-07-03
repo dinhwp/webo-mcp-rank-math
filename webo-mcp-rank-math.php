@@ -5,7 +5,7 @@
  * Plugin Name: WEBO MCP - Rank Math Addon
  * Plugin URI: https://webomcp.com
  * Description: Rank Math SEO management abilities addon for WEBO MCP.
- * Version: 1.0.17
+ * Version: 1.1.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: webo-mcp, seo-by-rank-math
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'WEBO_MCP_RANK_MATH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WEBO_MCP_RANK_MATH_URL', plugin_dir_url( __FILE__ ) );
-define( 'WEBO_MCP_RANK_MATH_VERSION', '1.0.17' );
+define( 'WEBO_MCP_RANK_MATH_VERSION', '1.1.0' );
 if ( ! defined( 'WEBO_MCP_LICENSE_STORE_URL' ) ) {
 	define( 'WEBO_MCP_LICENSE_STORE_URL', 'https://webomcp.com' );
 }
@@ -62,6 +62,7 @@ function webo_mcp_rank_math_public_mcp_ability_names() {
 		'webo-rank-math/redirect-query',
 		'webo-rank-math/redirect-mutate',
 		'webo-rank-math/schema-mutate',
+		'webo-rank-math/semantic-action',  // AI-first semantic tools (v1.1.0+)
 	);
 }
 
@@ -1238,15 +1239,16 @@ function webo_mcp_rank_math_execute_advanced_update_tool( $arguments ) {
 
 function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
 	$map = array(
-		'seo_quick_update'              => array( 'write', 'medium' ),
-		'seo_advanced_update'           => array( 'admin', 'critical' ),
-		'webo-rank-math/config-query'   => array( 'read', 'low' ),
-		'webo-rank-math/config-mutate'  => array( 'admin', 'critical' ),
-		'webo-rank-math/post-seo-query'  => array( 'read', 'low' ),
-		'webo-rank-math/post-seo-mutate' => array( 'write', 'medium' ),
-		'webo-rank-math/schema-mutate'   => array( 'write', 'high' ),
-		'rankmath_get_post_meta'         => array( 'read', 'low' ),
-		'rankmath_update_post_meta'      => array( 'write', 'medium' ),
+		'seo_quick_update'                    => array( 'write', 'medium' ),
+		'seo_advanced_update'                 => array( 'admin', 'critical' ),
+		'webo-rank-math/config-query'         => array( 'read', 'low' ),
+		'webo-rank-math/config-mutate'        => array( 'admin', 'critical' ),
+		'webo-rank-math/post-seo-query'       => array( 'read', 'low' ),
+		'webo-rank-math/post-seo-mutate'      => array( 'write', 'medium' ),
+		'webo-rank-math/schema-mutate'        => array( 'write', 'high' ),
+		'webo-rank-math/semantic-action'      => array( 'admin', 'high' ),
+		'rankmath_get_post_meta'              => array( 'read', 'low' ),
+		'rankmath_update_post_meta'           => array( 'write', 'medium' ),
 	);
 	return isset( $map[ $tool_name ] ) ? $map[ $tool_name ] : array( 'write', 'medium' );
 }
@@ -1317,6 +1319,56 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 					return webo_mcp_rank_math_execute_quick_update_tool( $arguments );
 				}
 				return webo_mcp_rank_math_execute_public_post_meta_tool( 'rankmath_update_post_meta', $arguments );
+			},
+		),
+		'webo-rank-math/semantic-action' => array(
+			'description' => 'AI-first semantic actions for brand identity, homepage, social, schema, and sitemap. action: apply-brand-profile, migrate-brand, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo. All mutations default to dry_run=true.',
+			'arguments'   => array(
+				'action' => array(
+					'type'     => 'string',
+					'required' => true,
+					'enum'     => array(
+						'apply-brand-profile',
+						'migrate-brand',
+						'configure-homepage',
+						'configure-social',
+						'configure-schema-defaults',
+						'configure-sitemap-profile',
+						'audit-brand-seo',
+						'fix-brand-seo',
+					),
+				),
+				'profile'              => array( 'type' => 'string', 'required' => false ),
+				'brand_name'           => array( 'type' => 'string', 'required' => false ),
+				'alternate_name'       => array( 'type' => 'string', 'required' => false ),
+				'url'                  => array( 'type' => 'string', 'required' => false ),
+				'description'          => array( 'type' => 'string', 'required' => false ),
+				'logo'                 => array( 'type' => 'string', 'required' => false ),
+				'homepage_title'       => array( 'type' => 'string', 'required' => false ),
+				'homepage_description' => array( 'type' => 'string', 'required' => false ),
+				'facebook'             => array( 'type' => 'string', 'required' => false ),
+				'twitter'              => array( 'type' => 'string', 'required' => false ),
+				'instagram'            => array( 'type' => 'string', 'required' => false ),
+				'linkedin'             => array( 'type' => 'string', 'required' => false ),
+				'youtube'              => array( 'type' => 'string', 'required' => false ),
+				'github'               => array( 'type' => 'string', 'required' => false ),
+				'pinterest'            => array( 'type' => 'string', 'required' => false ),
+				'from'                 => array( 'type' => 'string', 'required' => false ),
+				'to'                   => array( 'type' => 'string', 'required' => false ),
+				'title'                => array( 'type' => 'string', 'required' => false ),
+				'post_types'           => array( 'type' => 'object', 'required' => false ),
+				'include_post_types'   => array( 'type' => 'array', 'required' => false ),
+				'exclude_post_types'   => array( 'type' => 'array', 'required' => false ),
+				'include_taxonomies'   => array( 'type' => 'array', 'required' => false ),
+				'exclude_taxonomies'   => array( 'type' => 'array', 'required' => false ),
+				'dry_run'              => array( 'type' => 'boolean', 'required' => false, 'default' => true ),
+				'site_id'              => array( 'type' => 'integer', 'required' => false ),
+			),
+			'callback' => static function ( array $arguments ) {
+				if ( function_exists( 'webo_rank_math_semantic_action' ) ) {
+					return webo_rank_math_semantic_action( $arguments );
+				}
+				return new WP_Error( 'webo_mcp_semantic_action_unavailable', 'Semantic action handlers are not loaded.' );
 			},
 		),
 	);

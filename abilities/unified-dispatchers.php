@@ -723,6 +723,15 @@ function webo_rank_math_config_mutate( $input ) {
 		return new WP_Error( 'webo_mcp_missing_action', 'action is required' );
 	}
 
+	// Semantic (AI-first) actions are also reachable via config-mutate for backward compat.
+	$semantic_actions = array(
+		'apply-brand-profile', 'migrate-brand', 'configure-homepage', 'configure-social',
+		'configure-schema-defaults', 'configure-sitemap-profile', 'audit-brand-seo', 'fix-brand-seo',
+	);
+	if ( in_array( $action, $semantic_actions, true ) && function_exists( 'webo_rank_math_semantic_action' ) ) {
+		return webo_rank_math_semantic_action( $input );
+	}
+
 	return match ( $action ) {
 		'update-options'       => webo_rank_math_update_options( $input ),
 		'update-modules'       => webo_rank_math_update_modules( $input ),
@@ -731,7 +740,7 @@ function webo_rank_math_config_mutate( $input ) {
 		'optimize-basic',
 		'optimize-basic-settings',
 		'seo-baseline'         => webo_rank_math_apply_basic_seo_settings( $input ),
-		default               => new WP_Error( 'webo_mcp_invalid_action', sprintf( 'Unknown config-mutate action: %s', $action ) ),
+		default               => new WP_Error( 'webo_mcp_invalid_action', sprintf( 'Unknown config-mutate action: %s. Semantic actions (apply-brand-profile, migrate-brand, etc.) are available via webo-rank-math/semantic-action.', $action ) ),
 	};
 }
 

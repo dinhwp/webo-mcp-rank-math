@@ -1,10 +1,12 @@
 # WEBO MCP - Rank Math Addon
 
-Rank Math SEO addon for WEBO MCP. It exposes `webo-rank-math/*` abilities through the WordPress Abilities API bridge so MCP clients can manage Rank Math SEO metadata, options, modules, and redirections without wp-admin or WP-CLI.
+Rank Math SEO addon for WEBO MCP (v1.1.0). Exposes `webo-rank-math/*` abilities through the WordPress Abilities API bridge so AI clients (ChatGPT, Claude, Codex, Cursor, etc.) can manage Rank Math SEO settings without wp-admin or WP-CLI.
+
+**v1.1.0** introduces an AI-first semantic layer with layered architecture (Repository / Service / Validator / Mapper / Snapshot) on top of all existing tools — no backward-incompatible changes.
 
 ## Website
 
-[webomcp.com](https://webomcp.com) - product overview, docs, and ecosystem updates.
+[webomcp.com](https://webomcp.com) — product overview, docs, and ecosystem updates.
 
 ## Requirements
 
@@ -18,66 +20,282 @@ Rank Math SEO addon for WEBO MCP. It exposes `webo-rank-math/*` abilities throug
 1. Install and activate Rank Math SEO.
 2. Install and activate WEBO MCP.
 3. Install and activate this addon.
-4. Use the WEBO MCP router endpoint from the main plugin: `POST /wp-json/mcp/v1/router`.
+4. Use the WEBO MCP router endpoint: `POST /wp-json/mcp/v1/router`.
 
-## Public MCP tools (`tools/list`)
+---
 
-MCP discovery lists the dispatcher abilities: `webo-rank-math/config-query`, `config-mutate`, `post-seo-query`, `post-seo-mutate`, `schema-mutate`, `term-seo-query`, `term-seo-mutate`, `user-seo-query`, `user-seo-mutate`, `redirect-query`, and `redirect-mutate`. Pass an `action` argument per ability schema (for example redirect: `redirect-query` with `action` `list` or `get`; `redirect-mutate` with `create`, `update`, or `delete`). Granular ability names below remain registered for REST and internal `wp_run_ability` calls but are not advertised as MCP tools.
+## Tools reference
 
-## Abilities
+### Tools kept from v1.0 (all still work, unchanged)
 
-All abilities are registered under category `webo-rank-math`.
+| Tool | Actions / Notes |
+|------|----------------|
+| `webo-rank-math/config-query` | `plugin-status`, `get-options`, `get-modules` |
+| `webo-rank-math/config-mutate` | `update-options`, `update-modules`, `flush-sitemap-cache`, `apply-basic-seo` |
+| `webo-rank-math/post-seo-query` | `get`, `audit` |
+| `webo-rank-math/post-seo-mutate` | `update`, `bulk-upsert`, `cleanup` |
+| `webo-rank-math/term-seo-query` | `get` |
+| `webo-rank-math/term-seo-mutate` | `update` |
+| `webo-rank-math/user-seo-query` | `get` |
+| `webo-rank-math/user-seo-mutate` | `update` |
+| `webo-rank-math/redirect-query` | `list`, `get` |
+| `webo-rank-math/redirect-mutate` | `create`, `update`, `delete` |
+| `webo-rank-math/schema-mutate` | `upsert`, `delete`, `cleanup` — defaults `dry_run:true` |
+| `seo_quick_update` | Title / description / focus_keyword only (safe AI write) |
 
-| Ability | Description |
-|--------|-------------|
-| `webo-rank-math/get-plugin-status` | Read Rank Math plugin state, version, active modules, and available option groups |
-| `webo-rank-math/get-post-seo-meta` | Read Rank Math SEO metadata for one post by `post_id` or `slug` + `post_type` |
-| `webo-rank-math/update-post-seo-meta` | Update Rank Math SEO metadata for one post; `null` deletes a key |
-| `webo-rank-math/bulk-upsert-post-seo-meta` | Bulk update post SEO metadata by `post_id` or `slug` |
-| `webo-rank-math/get-term-seo-meta` | Read Rank Math SEO metadata for one term |
-| `webo-rank-math/update-term-seo-meta` | Update Rank Math SEO metadata for one term |
-| `webo-rank-math/get-user-seo-meta` | Read Rank Math author/archive SEO metadata |
-| `webo-rank-math/update-user-seo-meta` | Update Rank Math author/archive SEO metadata |
-| `webo-rank-math/get-options` | Read Rank Math option groups |
-| `webo-rank-math/update-options` | Update Rank Math options; only `rank_math*` and `rank-math-options-*` keys are accepted |
-| `webo-rank-math/get-modules` | Read active Rank Math modules |
-| `webo-rank-math/update-modules` | Replace the active module list stored in `rank_math_modules` |
-| `webo-rank-math/list-redirections` | List Rank Math redirections with pagination and filters |
-| `webo-rank-math/get-redirection` | Read one Rank Math redirection by ID |
-| `webo-rank-math/create-redirection` | Create a redirection with source, destination, status, and type |
-| `webo-rank-math/update-redirection` | Update a redirection by ID |
-| `webo-rank-math/delete-redirection` | Delete one or more redirections by ID |
+### New tools added in v1.1.0
 
-### Common input rules
+| Tool | Actions |
+|------|---------|
+| `webo-rank-math/semantic-action` | `apply-brand-profile`, `migrate-brand`, `configure-homepage`, `configure-social`, `configure-schema-defaults`, `configure-sitemap-profile`, `audit-brand-seo`, `fix-brand-seo` |
 
-- `site_id` is supported on multisite-aware abilities.
-- Post abilities accept either `post_id` or `slug` plus optional `post_type`.
-- `get-post-seo-meta`, `get-term-seo-meta`, and `get-user-seo-meta` accept optional `keys` arrays to limit which `seo_meta` fields are returned.
-- `bulk-upsert-post-seo-meta` accepts `items[]` with `seo_meta` plus either `post_id` or `slug`, and returns `success_count`, `failure_count`, `stopped_early`, and per-item `results`.
-- `seo_meta` can contain any `rank_math_*` key; helper defaults cover common title, description, robots, social, schema, pillar content, and primary category fields.
-- `schema-mutate` writes only `rank_math_schema_*` post meta. Actions: `upsert`, `delete`, `cleanup`. It defaults to `dry_run: true`; set `dry_run: false` or `force: true` to write.
-- `get-options` accepts optional `option_names`; if omitted, the addon reads its default Rank Math option groups, including current `rank-math-options-*` groups.
-- `update-modules` accepts a `modules` array and can clear the stored module list by sending an empty array.
-- Redirections require the Rank Math Redirections module. The addon prefers
-  Rank Math's model/DB wrappers and falls back to the Rank Math redirections
-  table when those wrappers return inconsistent results.
-- The addon includes a small public fallback that renders saved Rank Math title
-  and meta description when a site stores Rank Math meta but the Rank Math
-  frontend head hook is not firing. The same fallback layer can run active
-  exact-match Rank Math redirections when the Rank Math frontend redirect hook
-  is missing.
+All semantic actions default to `dry_run: true`. Pass `dry_run: false` to write.
 
-### Redirection schema notes
+---
 
-- `list-redirections` supports `limit` up to 500, plus `paged`, `status`, and `search`.
-- `create-redirection` and `update-redirection` accept `comparison` values `exact`, `contains`, `start`, `end`, or `regex`.
-- `ignore_case` maps to Rank Math source matching with `ignore = case`.
-- Redirect `type` accepts `301`, `302`, `307`, `410`, or `451`; for `410` and `451`, destination is cleared automatically.
-- `delete-redirection` uses the input key `id`, which may be a single integer or an array of integers.
+## Semantic actions (AI-first usage)
 
-### Schema mutate examples
+### `apply-brand-profile`
 
-Dry run an Article schema update:
+Maps a brand identity to Knowledge Graph, homepage, social profiles, breadcrumbs, OpenGraph, Twitter card, and schema entity — all at once.
+
+**Input:**
+
+```json
+{
+  "action": "apply-brand-profile",
+  "profile": "personal",
+  "brand_name": "DinhWP",
+  "alternate_name": "Đinh WP",
+  "url": "https://dinhwp.com",
+  "description": "DinhWP chia sẻ WordPress, AI Automation, MCP, Plugin Development, SEO và kinh nghiệm xây dựng SaaS thực tế.",
+  "facebook": "https://facebook.com/dinhwp",
+  "github": "https://github.com/dinhwp",
+  "dry_run": true
+}
+```
+
+**What it maps to (Rank Math options):**
+
+| Input field | Rank Math option key |
+|-------------|----------------------|
+| `brand_name` | `general.knowledgegraph_name`, `titles.website_name`, `titles.breadcrumbs_home_label` |
+| `profile` | `general.knowledgegraph_type` (`person` / `organization`) |
+| `url` | `general.knowledgegraph_url`, `titles.breadcrumbs_home_link` |
+| `description` | `general.knowledgegraph_description`, `titles.homepage_description` |
+| `alternate_name` | `titles.website_alternate_name` |
+| `facebook` | `general.social_url_facebook`, `social.facebook_link`, `social.facebook_author_urls` |
+| `twitter` | `general.social_url_twitter`, `social.twitter_link`, `social.twitter_author_names` |
+| `github`, `instagram`, `linkedin`, `youtube`, `pinterest` | `general.social_url_*`, `general.social_networks` (sameAs) |
+| *(all social)* | `titles.twitter_card_type` = `summary_large_image` |
+
+**Output (dry_run=true):**
+
+```json
+{
+  "dry_run": true,
+  "executed": false,
+  "would_change": true,
+  "planned_count": 14,
+  "diff": [ ... ],
+  "action": "apply-brand-profile",
+  "changed_fields": ["general.knowledgegraph_name", "..."],
+  "warnings": []
+}
+```
+
+**Output (dry_run=false):** same shape with `dry_run: false`, `executed: true`, `changed: true`, `snapshot_id`.
+
+---
+
+### `migrate-brand`
+
+Scans all Rank Math option groups for the old brand string and replaces every occurrence safely.
+
+```json
+{
+  "action": "migrate-brand",
+  "from": "Webo",
+  "to": "DinhWP",
+  "dry_run": true
+}
+```
+
+- Recurses into nested arrays inside option groups.
+- Creates a snapshot before writing (rollback on error).
+- Returns a full diff of every changed key.
+
+---
+
+### `configure-homepage`
+
+```json
+{
+  "action": "configure-homepage",
+  "title": "DinhWP – WordPress & AI Automation",
+  "description": "Chia sẻ WordPress thực tế, AI Automation, MCP, Plugin Development.",
+  "dry_run": false
+}
+```
+
+---
+
+### `configure-social`
+
+```json
+{
+  "action": "configure-social",
+  "facebook": "https://facebook.com/dinhwp",
+  "github": "https://github.com/dinhwp",
+  "dry_run": false
+}
+```
+
+---
+
+### `configure-schema-defaults`
+
+Set default schema type per post type in `rank-math-options-titles`.
+
+```json
+{
+  "action": "configure-schema-defaults",
+  "post_types": {
+    "post": "article",
+    "page": "webpage",
+    "product": "product"
+  },
+  "dry_run": true
+}
+```
+
+---
+
+### `configure-sitemap-profile`
+
+```json
+{
+  "action": "configure-sitemap-profile",
+  "include_post_types": ["post", "page", "portfolio"],
+  "exclude_post_types": ["attachment"],
+  "exclude_taxonomies": ["post_tag"],
+  "dry_run": false
+}
+```
+
+---
+
+### `audit-brand-seo`
+
+Read-only. Returns current brand fields and a list of issues.
+
+```json
+{
+  "action": "audit-brand-seo"
+}
+```
+
+Response includes `health: "ok" | "warning" | "error"` and `issues[]`.
+
+---
+
+### `fix-brand-seo`
+
+Same input as `apply-brand-profile` but **only fills empty fields** — never overwrites existing values.
+
+```json
+{
+  "action": "fix-brand-seo",
+  "profile": "personal",
+  "brand_name": "DinhWP",
+  "url": "https://dinhwp.com",
+  "dry_run": true
+}
+```
+
+---
+
+## Mutation safety contract
+
+Every mutate action (old and new) follows this contract:
+
+| State | `dry_run` | `executed` | Keys present |
+|-------|-----------|------------|-------------|
+| Preview | `true` | `false` | `would_change`, `planned_count`, `diff` |
+| Executed | `false` | `true` | `changed`, `changed_count`, `diff` |
+
+Misleading keys (`success`, `updated`, `updated_count`, `deleted`, `deleted_count`) are **stripped from preview responses** so AI clients cannot misread a dry run as a completed write.
+
+Dangerous mutations (`delete`, `cleanup`, `migrate-brand` on large option sets) also require `force: true` or a `checkpoint_id` to execute.
+
+---
+
+## Architecture (v1.1.0)
+
+```
+includes/
+  mutation-contract.php                 Safety contract helpers (unchanged)
+  license-client.php                    EDD license client (unchanged)
+  class-rank-math-options-repository.php  ← NEW: single R/W source for RM options
+  class-snapshot-service.php             ← NEW: point-in-time snapshots + rollback
+  class-brand-profile-validator.php      ← NEW: input validation layer
+  class-brand-profile-mapper.php         ← NEW: input → Rank Math option key mapping
+  class-brand-profile-service.php        ← NEW: apply-brand-profile orchestration
+  class-migration-service.php            ← NEW: migrate-brand orchestration
+
+abilities/
+  helpers.php                           Post/term/user meta helpers (unchanged)
+  category.php                          Ability category registration (unchanged)
+  unified-dispatchers.php               11 unified MCP tools (unchanged API)
+  rank-math-management.php              Loader — now loads all new classes
+  semantic-actions.php                  ← NEW: AI-first semantic action dispatcher
+  redirections.php                      Redirection CRUD abilities (unchanged)
+  ability-*.php                         Granular abilities (REST compat, unchanged)
+
+webo-mcp-rank-math.php                  Bootstrap + ToolRegistry (semantic-action added)
+```
+
+**Key principles:**
+- `OptionsRepository` is the **only** place that calls `get_option`/`update_option` for Rank Math options in the new layer.
+- Controllers/Services never write options directly.
+- Every large mutation creates a **Snapshot** first; on write error the snapshot rolls back automatically.
+- All mutations support `dry_run` (default: `true`).
+
+---
+
+## For AI clients (ChatGPT / Claude / Codex / Cursor)
+
+### Recommended workflow for a new site brand setup
+
+```
+1. audit-brand-seo          → see what's missing
+2. apply-brand-profile      → dry_run=true first, review diff
+3. apply-brand-profile      → dry_run=false to apply
+4. audit-brand-seo          → verify health=ok
+```
+
+### Rename a brand across the whole site
+
+```
+1. migrate-brand  from="OldName"  to="NewName"  dry_run=true   → review diff
+2. migrate-brand  from="OldName"  to="NewName"  dry_run=false  → apply
+```
+
+### Quick post SEO update (safe, no schema/robots changes)
+
+```json
+{
+  "name": "seo_quick_update",
+  "arguments": {
+    "slug": "my-post-slug",
+    "title": "New SEO Title",
+    "description": "New meta description.",
+    "dry_run": false
+  }
+}
+```
+
+### Schema upsert (dry run first)
 
 ```json
 {
@@ -85,95 +303,104 @@ Dry run an Article schema update:
   "arguments": {
     "post_id": 8961,
     "action": "upsert",
-    "schema_key": "rank_math_schema_Article",
-    "schema": {
-      "@type": "Article",
-      "headline": "Example headline",
-      "description": "Example description"
-    },
+    "schema": { "@type": "Article", "headline": "My Article" },
     "dry_run": true
   }
 }
 ```
 
-Write the update:
+---
 
-```json
-{
-  "name": "webo-rank-math/schema-mutate",
-  "arguments": {
-    "post_id": 8961,
-    "action": "upsert",
-    "schema_key": "rank_math_schema_Article",
-    "schema": {
-      "@type": "Article",
-      "headline": "Example headline",
-      "description": "Example description"
-    },
-    "dry_run": false
-  }
-}
-```
+## Abilities (granular, REST-compatible)
 
-Delete one schema meta key:
+All abilities are registered under category `webo-rank-math` and available at `GET /wp-json/wp/v2/abilities`.
 
-```json
-{
-  "name": "webo-rank-math/schema-mutate",
-  "arguments": {
-    "post_id": 8961,
-    "action": "delete",
-    "schema_key": "rank_math_schema_Article",
-    "dry_run": false
-  }
-}
-```
+| Ability | Description |
+|---------|-------------|
+| `webo-rank-math/config-query` | Plugin status, options, modules |
+| `webo-rank-math/config-mutate` | Update options, modules, flush cache, apply baseline |
+| `webo-rank-math/post-seo-query` | Read post SEO meta + audit |
+| `webo-rank-math/post-seo-mutate` | Update, bulk-upsert, cleanup post SEO meta |
+| `webo-rank-math/term-seo-query` | Read term SEO meta |
+| `webo-rank-math/term-seo-mutate` | Update term SEO meta |
+| `webo-rank-math/user-seo-query` | Read user/author SEO meta |
+| `webo-rank-math/user-seo-mutate` | Update user SEO meta |
+| `webo-rank-math/redirect-query` | List / get redirections |
+| `webo-rank-math/redirect-mutate` | Create / update / delete redirections |
+| `webo-rank-math/schema-mutate` | Upsert / delete / cleanup schema post meta |
+| `webo-rank-math/semantic-action` | AI-first brand, homepage, social, sitemap actions |
+
+---
 
 ## Permissions
 
-- Plugin status, options, modules, redirections: `manage_options`
-- Post SEO meta: `edit_posts`, plus `edit_post` per updated post
-- Term SEO meta: `manage_categories`
-- User SEO meta: `edit_users`
+| Area | Capability |
+|------|-----------|
+| Plugin status, options, modules, redirections, semantic actions | `manage_options` |
+| Post SEO meta | `edit_posts` + `edit_post` per post |
+| Term SEO meta | `manage_categories` |
+| User SEO meta | `edit_users` |
 
-## Skills for MCP clients
+---
 
-The maintained public agent skills are published with the main [WEBO MCP](https://webomcp.com) documentation.
-
-- [WEBO MCP skills documentation](https://webomcp.com)
-- `webo-mcp-ability-rank-math`
-- `webo-mcp-rank-math-redirections`
-
-Install examples via the `skills` CLI:
+## Running tests
 
 ```bash
-npx skills add https://webomcp.com --skill webo-mcp-ability-rank-math -a cursor -g -y
-npx skills add https://webomcp.com --skill webo-mcp-rank-math-redirections -a cursor -g -y
+# No WordPress needed (pure PHP unit tests):
+php tests/options-repository-cases.php
+php tests/snapshot-service-cases.php
+php tests/brand-profile-service-cases.php
+php tests/migration-service-cases.php
+php tests/post-id-resolution-cases.php
+
+# Needs WordPress (wp-cli):
+wp eval-file tests/rank-math-dry-run-cases.php --allow-root
+wp eval-file tests/seo-quick-update-cases.php --allow-root
 ```
+
+---
 
 ## Development layout
 
-- `webo-mcp-rank-math.php` - bootstrap, dependency notices, textdomain loading
-- `abilities/helpers.php` - key lists, site switching, collect/update helpers
-- `abilities/category.php` - `webo-rank-math` category registration
-- `abilities/ability-plugin-status.php` - plugin state ability
-- `abilities/ability-post-meta.php` - post SEO meta abilities
-- `abilities/ability-term-meta.php` - term SEO meta abilities
-- `abilities/ability-user-meta.php` - user SEO meta abilities
-- `abilities/ability-options.php` - options and modules abilities
-- `abilities/redirections.php` - redirection CRUD abilities
+```
+abilities/
+  helpers.php                  Meta key lists, collect/update helpers, site switcher
+  category.php                 Ability category registration
+  unified-dispatchers.php      10 unified dispatcher abilities + handler functions
+  rank-math-management.php     Loader (loads classes then semantic-actions.php)
+  semantic-actions.php         NEW: 8 AI-first semantic action handlers
+  redirections.php             Redirection CRUD (uses RankMath\Redirections\DB)
+  ability-*.php                Granular per-feature abilities (REST compat)
 
-## Scope against Rank Math free
+includes/
+  mutation-contract.php                    Dry-run safety contract
+  license-client.php                       EDD license client
+  class-rank-math-options-repository.php   Repository layer
+  class-snapshot-service.php              Snapshot + rollback
+  class-brand-profile-validator.php       Input validation
+  class-brand-profile-mapper.php          Input → Rank Math key mapping
+  class-brand-profile-service.php         apply-brand-profile service
+  class-migration-service.php             migrate-brand service
 
-| Area | Status | Notes |
-|------|--------|-------|
-| Post and term SEO fields | Covered | Default helpers include title, description, focus keyword, canonical, robots, social, schema, pillar, primary category |
-| User or author SEO fields | Covered | Author archive title, description, robots, canonical |
-| Global options | Covered | `rank_math*` and `rank-math-options-*` options, default groups for general, titles, sitemap, social, analytics |
-| Modules | Covered | Read and replace active module list |
-| Plugin status | Covered | Version, active state, modules, option groups |
-| Redirections | Covered | Requires Rank Math Redirections module |
+webo-mcp-rank-math.php   Plugin bootstrap, ToolRegistry, ability meta filters
+frontend-fallback.php    Lightweight fallback for title/description/robots/redirects
+```
+
+## Scope vs Rank Math free
+
+| Area | Status |
+|------|--------|
+| Post SEO meta (title, description, focus keyword, canonical, robots, OG, Twitter, schema) | Covered |
+| Term SEO meta | Covered |
+| User/author SEO meta | Covered |
+| Global options (general, titles, sitemap, social, instant-indexing) | Covered |
+| Modules | Covered |
+| Plugin status | Covered |
+| Redirections | Covered (requires Redirections module) |
+| Brand profile / Knowledge Graph | Covered (v1.1.0 semantic actions) |
+| Brand migration (rename across all options) | Covered (v1.1.0 migrate-brand) |
+| Sitemap profile | Covered (v1.1.0 configure-sitemap-profile) |
 
 ## Support
 
-Contact the WEBO team for product support or bug reports.
+Contact the WEBO team via [webomcp.com](https://webomcp.com) for product support or bug reports.
