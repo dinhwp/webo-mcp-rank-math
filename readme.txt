@@ -5,7 +5,7 @@ Tags: mcp, seo, rank-math, ai, automation
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.14
+Stable tag: 1.0.17
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -87,6 +87,9 @@ The maintained skill files live in the main WEBO MCP repository, not in this add
 
 == Changelog ==
 
+= 1.0.17 =
+* Keep public Rank Math dispatcher tools visible in MCP `tools/list`, including global config query/mutate, while still hiding granular/internal aliases.
+
 = 1.0.14 =
 * Add robots meta fallback for stored Rank Math robots values when the active frontend stack renders an empty robots tag.
 
@@ -118,6 +121,9 @@ The maintained skill files live in the main WEBO MCP repository, not in this add
 * Initial public addon release for Rank Math SEO abilities.
 
 == Upgrade Notice ==
+
+= 1.0.17 =
+MCP clients can now discover Rank Math global config query/mutate tools for Titles, Sitemap, Social, modules and related option groups.
 
 = 1.0.14 =
 Stored noindex/follow robots values can now render even when the frontend stack outputs an empty robots tag.
