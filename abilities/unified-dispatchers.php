@@ -750,6 +750,18 @@ function webo_rank_math_config_mutate( $input ) {
 		return new WP_Error( 'webo_mcp_missing_action', 'action is required' );
 	}
 
+	if ( isset( $input['options'] ) && is_array( $input['options'] ) ) {
+		foreach ( $input['options'] as $key => $value ) {
+			if ( ! array_key_exists( $key, $input ) ) {
+				$input[ $key ] = $value;
+			}
+		}
+	}
+
+	if ( 'apply-profile' === $action && function_exists( 'webo_mcp_rank_math_apply_profile_tool' ) ) {
+		return webo_mcp_rank_math_apply_profile_tool( $input );
+	}
+
 	// Semantic (AI-first) actions are also reachable via config-mutate for backward compat.
 	$semantic_actions = array(
 		'apply-brand-profile', 'migrate-brand', 'configure-homepage', 'configure-social',

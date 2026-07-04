@@ -1259,6 +1259,7 @@ function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
 
 function webo_mcp_rank_math_apply_profile_tool_arguments() {
 	return array(
+		'action'               => array( 'type' => 'string', 'required' => false, 'enum' => array( 'apply-profile' ), 'description' => 'Optional compatibility action. When provided, use apply-profile.' ),
 		'profile'              => array( 'type' => 'string', 'required' => true, 'description' => 'Profile preset, e.g. personal-brand, local-business, organization, company, blog, news-site, ecommerce, agency.' ),
 		'brand_name'           => array( 'type' => 'string', 'required' => false ),
 		'person_name'          => array( 'type' => 'string', 'required' => false ),
@@ -1285,7 +1286,7 @@ function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
 			'type'     => 'string',
 			'required' => true,
 			'enum'     => $mutation
-				? array( 'update-options', 'update-modules', 'flush-sitemap-cache', 'apply-basic-seo', 'optimize-basic', 'optimize-basic-settings', 'seo-baseline', 'apply-brand-profile', 'configure-sitemap-profile', 'configure-schema-defaults', 'fix-brand-seo' )
+				? array( 'update-options', 'update-modules', 'flush-sitemap-cache', 'apply-basic-seo', 'optimize-basic', 'optimize-basic-settings', 'seo-baseline', 'apply-profile', 'apply-brand-profile', 'configure-sitemap-profile', 'configure-schema-defaults', 'fix-brand-seo' )
 				: array( 'plugin-status', 'get-options', 'get-modules' ),
 		),
 		'site_id' => array( 'type' => 'integer', 'required' => false ),
@@ -1303,7 +1304,20 @@ function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
 	return $args;
 }
 
+function webo_mcp_rank_math_normalize_profile_arguments( array $arguments ) {
+	if ( isset( $arguments['options'] ) && is_array( $arguments['options'] ) ) {
+		foreach ( $arguments['options'] as $key => $value ) {
+			if ( ! array_key_exists( $key, $arguments ) ) {
+				$arguments[ $key ] = $value;
+			}
+		}
+	}
+
+	return $arguments;
+}
+
 function webo_mcp_rank_math_normalize_profile_preset( array $arguments ) {
+	$arguments = webo_mcp_rank_math_normalize_profile_arguments( $arguments );
 	$preset = sanitize_key( (string) ( $arguments['profile'] ?? '' ) );
 
 	$profile_map = array(
