@@ -37,6 +37,7 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 		 */
 		public static function map( $input ) {
 			$brand_name    = sanitize_text_field( trim( (string) ( $input['brand_name'] ?? '' ) ) );
+			$person_name   = sanitize_text_field( trim( (string) ( $input['person_name'] ?? '' ) ) );
 			$alternate     = sanitize_text_field( trim( (string) ( $input['alternate_name'] ?? '' ) ) );
 			$url           = esc_url_raw( trim( (string) ( $input['url'] ?? '' ) ) );
 			$description   = sanitize_textarea_field( trim( (string) ( $input['description'] ?? '' ) ) );
@@ -45,6 +46,7 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 
 			// Rank Math Knowledge Graph entity type.
 			$kg_type = ( 'personal' === $profile ) ? 'person' : 'organization';
+			$kg_name = ( 'personal' === $profile && '' !== $person_name ) ? $person_name : $brand_name;
 
 			// Social URLs.
 			$facebook  = esc_url_raw( trim( (string) ( $input['facebook'] ?? '' ) ) );
@@ -78,7 +80,7 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 
 			$general_patch = array(
 				'knowledgegraph_type'        => $kg_type,
-				'knowledgegraph_name'        => $brand_name,
+				'knowledgegraph_name'        => $kg_name,
 				'knowledgegraph_url'         => $url,
 				'knowledgegraph_description' => $description,
 			);

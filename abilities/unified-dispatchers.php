@@ -73,6 +73,7 @@ function webo_rank_math_update_options( $input ) {
 			);
 		}
 
+		$dry_run = webo_rank_math_resolve_dry_run( $input, false );
 		$updated = array();
 		$diff    = array();
 		foreach ( $options as $name => $value ) {
@@ -81,8 +82,10 @@ function webo_rank_math_update_options( $input ) {
 				continue;
 			}
 			$before = get_option( $k, null );
-			update_option( $k, $value );
-			$after       = get_option( $k );
+			if ( ! $dry_run ) {
+				update_option( $k, $value );
+			}
+			$after       = $dry_run ? $value : get_option( $k );
 			$updated[ $k ] = $after;
 			$diff[ $k ]    = array(
 				'before'  => $before,
@@ -100,7 +103,13 @@ function webo_rank_math_update_options( $input ) {
 
 		return array(
 			'success'       => true,
-			'updated_count' => count( $updated ),
+			'dry_run'       => $dry_run,
+			'executed'      => ! $dry_run,
+			'would_change'  => $dry_run && count( $updated ) > 0,
+			'planned_count' => $dry_run ? count( $updated ) : 0,
+			'changed'       => ! $dry_run && count( $updated ) > 0,
+			'changed_count' => $dry_run ? 0 : count( $updated ),
+			'updated_count' => $dry_run ? 0 : count( $updated ),
 			'options'       => $updated,
 			'diff'          => $diff,
 		);
@@ -214,13 +223,16 @@ function webo_rank_math_create_module_tables( $modules ) {
 }
 
 function webo_rank_math_apply_basic_seo_settings( $input ) {
-	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () {
+	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $input ) {
 		$modules = array_values( array_unique( array_merge(
 			(array) get_option( 'rank_math_modules', array() ),
 			array( 'seo-analysis', 'sitemap', 'rich-snippet', 'instant-indexing', 'redirections', '404-monitor', 'link-counter' )
 		) ) );
 		sort( $modules );
-		webo_rank_math_create_module_tables( $modules );
+		$dry_run = webo_rank_math_resolve_dry_run( $input, false );
+		if ( ! $dry_run ) {
+			webo_rank_math_create_module_tables( $modules );
+		}
 
 		$general = (array) get_option( 'rank-math-options-general', array() );
 		$titles  = (array) get_option( 'rank-math-options-titles', array() );
@@ -259,8 +271,23 @@ function webo_rank_math_apply_basic_seo_settings( $input ) {
 			) ),
 		);
 
-		$input = array( 'options' => $updates );
-		return webo_rank_math_update_options( $input );
+		$input = array_merge( $input, array( 'options' => $updates ) );
+		$result = webo_rank_math_update_options( $input );
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		$result['action']  = 'seo-baseline';
+		$result['profile'] = isset( $input['profile'] ) ? sanitize_key( (string) $input['profile'] ) : 'basic';
+
+		if ( ! $dry_run ) {
+			$flush = webo_rank_math_flush_sitemap_cache( $input );
+			if ( ! is_wp_error( $flush ) ) {
+				$result['sitemap_cache'] = $flush;
+			}
+		}
+
+		return $result;
 	} );
 }
 

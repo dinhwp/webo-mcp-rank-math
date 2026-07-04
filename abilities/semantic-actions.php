@@ -509,6 +509,7 @@ add_action( 'wp_abilities_api_init', function () {
 				// apply-brand-profile inputs
 				'profile'              => array( 'type' => 'string', 'enum' => array( 'personal', 'organization', 'company' ) ),
 				'brand_name'           => array( 'type' => 'string' ),
+				'person_name'          => array( 'type' => 'string' ),
 				'alternate_name'       => array( 'type' => 'string' ),
 				'url'                  => array( 'type' => 'string', 'format' => 'uri' ),
 				'description'          => array( 'type' => 'string' ),

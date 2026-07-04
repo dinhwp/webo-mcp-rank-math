@@ -1241,8 +1241,12 @@ function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
 	$map = array(
 		'seo_quick_update'                    => array( 'write', 'medium' ),
 		'seo_advanced_update'                 => array( 'admin', 'critical' ),
+		'rank_math_config_query'              => array( 'read', 'low' ),
+		'rank_math_config_mutate'             => array( 'admin', 'critical' ),
+		'rank_math_apply_profile'             => array( 'admin', 'high' ),
 		'webo-rank-math/config-query'         => array( 'read', 'low' ),
 		'webo-rank-math/config-mutate'        => array( 'admin', 'critical' ),
+		'webo-rank-math/apply-profile'        => array( 'admin', 'high' ),
 		'webo-rank-math/post-seo-query'       => array( 'read', 'low' ),
 		'webo-rank-math/post-seo-mutate'      => array( 'write', 'medium' ),
 		'webo-rank-math/schema-mutate'        => array( 'write', 'high' ),
@@ -1251,6 +1255,112 @@ function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
 		'rankmath_update_post_meta'           => array( 'write', 'medium' ),
 	);
 	return isset( $map[ $tool_name ] ) ? $map[ $tool_name ] : array( 'write', 'medium' );
+}
+
+function webo_mcp_rank_math_apply_profile_tool_arguments() {
+	return array(
+		'profile'              => array( 'type' => 'string', 'required' => true, 'description' => 'Profile preset, e.g. dinhwp-personal-brand, personal, organization, company.' ),
+		'brand_name'           => array( 'type' => 'string', 'required' => false ),
+		'person_name'          => array( 'type' => 'string', 'required' => false ),
+		'url'                  => array( 'type' => 'string', 'required' => false ),
+		'description'          => array( 'type' => 'string', 'required' => false ),
+		'homepage_title'       => array( 'type' => 'string', 'required' => false ),
+		'homepage_description' => array( 'type' => 'string', 'required' => false ),
+		'logo'                 => array( 'type' => 'string', 'required' => false ),
+		'facebook'             => array( 'type' => 'string', 'required' => false ),
+		'twitter'              => array( 'type' => 'string', 'required' => false ),
+		'instagram'            => array( 'type' => 'string', 'required' => false ),
+		'linkedin'             => array( 'type' => 'string', 'required' => false ),
+		'youtube'              => array( 'type' => 'string', 'required' => false ),
+		'github'               => array( 'type' => 'string', 'required' => false ),
+		'pinterest'            => array( 'type' => 'string', 'required' => false ),
+		'dry_run'              => array( 'type' => 'boolean', 'required' => false, 'default' => true ),
+		'site_id'              => array( 'type' => 'integer', 'required' => false ),
+	);
+}
+
+function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
+	$args = array(
+		'action' => array(
+			'type'     => 'string',
+			'required' => true,
+			'enum'     => $mutation
+				? array( 'update-options', 'update-modules', 'flush-sitemap-cache', 'apply-basic-seo', 'optimize-basic', 'optimize-basic-settings', 'seo-baseline', 'apply-brand-profile', 'configure-sitemap-profile', 'configure-schema-defaults', 'fix-brand-seo' )
+				: array( 'plugin-status', 'get-options', 'get-modules' ),
+		),
+		'site_id' => array( 'type' => 'integer', 'required' => false ),
+	);
+
+	if ( $mutation ) {
+		$args['options'] = array( 'type' => 'object', 'required' => false );
+		$args['modules'] = array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) );
+		$args['dry_run'] = array( 'type' => 'boolean', 'required' => false, 'default' => true );
+		$args['force']   = array( 'type' => 'boolean', 'required' => false );
+	} else {
+		$args['option_names'] = array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) );
+	}
+
+	return $args;
+}
+
+function webo_mcp_rank_math_normalize_profile_preset( array $arguments ) {
+	$preset = sanitize_key( (string) ( $arguments['profile'] ?? '' ) );
+
+	if ( 'dinhwp-personal-brand' === $preset ) {
+		$defaults = array(
+			'profile'              => 'personal',
+			'brand_name'           => 'DinhWP',
+			'person_name'          => 'Dương Phú Phương',
+			'url'                  => 'https://dinhwp.com',
+			'description'          => 'DinhWP chia sẻ kiến thức WordPress, SEO, MCP và tự động hóa website.',
+			'homepage_title'       => 'DinhWP - WordPress, SEO và MCP',
+			'homepage_description' => 'DinhWP chia sẻ hướng dẫn WordPress, Rank Math SEO, MCP và tự động hóa website thực chiến.',
+		);
+		return array_merge( $defaults, array_filter( $arguments, static function ( $value ) {
+			return null !== $value && '' !== $value;
+		} ) );
+	}
+
+	if ( in_array( $preset, array( 'personal', 'organization', 'company' ), true ) ) {
+		$arguments['profile'] = $preset;
+	}
+
+	return $arguments;
+}
+
+function webo_mcp_rank_math_apply_profile_tool( array $arguments ) {
+	$arguments = webo_mcp_rank_math_normalize_profile_preset( $arguments );
+	$dry_run   = webo_rank_math_resolve_dry_run( $arguments, false );
+
+	$semantic_args           = $arguments;
+	$semantic_args['action'] = 'apply-brand-profile';
+	$semantic_args['dry_run'] = $dry_run;
+
+	$baseline_args            = $arguments;
+	$baseline_args['action']  = 'seo-baseline';
+	$baseline_args['dry_run'] = $dry_run;
+
+	$baseline = function_exists( 'webo_rank_math_config_mutate' )
+		? webo_rank_math_config_mutate( $baseline_args )
+		: new WP_Error( 'webo_mcp_rank_math_config_unavailable', 'Rank Math config dispatcher is not available.' );
+	if ( is_wp_error( $baseline ) ) {
+		return $baseline;
+	}
+
+	$semantic = function_exists( 'webo_rank_math_semantic_action' )
+		? webo_rank_math_semantic_action( $semantic_args )
+		: new WP_Error( 'webo_mcp_semantic_action_unavailable', 'Semantic action handlers are not loaded.' );
+	if ( is_wp_error( $semantic ) ) {
+		return $semantic;
+	}
+
+	return array(
+		'profile'  => $arguments['profile'] ?? '',
+		'dry_run'  => $dry_run,
+		'executed' => ! $dry_run,
+		'baseline' => $baseline,
+		'semantic' => $semantic,
+	);
 }
 
 function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
@@ -1276,6 +1386,38 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 			},
 			'visibility'  => 'internal',
 			'permission'  => 'manage_options',
+		),
+		'rank_math_config_query' => array(
+			'description' => 'Read Rank Math global config through a simple public tool. action: plugin-status, get-options, get-modules.',
+			'arguments'   => webo_mcp_rank_math_config_tool_arguments( false ),
+			'callback'    => static function ( array $arguments ) {
+				return function_exists( 'webo_rank_math_config_query' )
+					? webo_rank_math_config_query( $arguments )
+					: new WP_Error( 'webo_mcp_rank_math_config_unavailable', 'Rank Math config dispatcher is not available.' );
+			},
+		),
+		'rank_math_config_mutate' => array(
+			'description' => 'Mutate Rank Math global config through a simple public tool. Supports seo-baseline/apply-basic-seo, update-options, update-modules, and sitemap cache flush. Defaults to dry_run=true.',
+			'arguments'   => webo_mcp_rank_math_config_tool_arguments( true ),
+			'callback'    => static function ( array $arguments ) {
+				return function_exists( 'webo_rank_math_config_mutate' )
+					? webo_rank_math_config_mutate( $arguments )
+					: new WP_Error( 'webo_mcp_rank_math_config_unavailable', 'Rank Math config dispatcher is not available.' );
+			},
+		),
+		'rank_math_apply_profile' => array(
+			'description' => 'Apply a Rank Math SEO profile preset in one call. Use profile=dinhwp-personal-brand for DinhWP personal brand. Applies baseline modules/options, Knowledge Graph, homepage, social, breadcrumbs, sitemap cache flush, and validation. Defaults to dry_run=true.',
+			'arguments'   => webo_mcp_rank_math_apply_profile_tool_arguments(),
+			'callback'    => static function ( array $arguments ) {
+				return webo_mcp_rank_math_apply_profile_tool( $arguments );
+			},
+		),
+		'webo-rank-math/apply-profile' => array(
+			'description' => 'Alias of rank_math_apply_profile for applying a Rank Math SEO profile preset in one call. Defaults to dry_run=true.',
+			'arguments'   => webo_mcp_rank_math_apply_profile_tool_arguments(),
+			'callback'    => static function ( array $arguments ) {
+				return webo_mcp_rank_math_apply_profile_tool( $arguments );
+			},
 		),
 		'webo-rank-math/post-seo-query' => array(
 			'description' => 'Rank Math post SEO query dispatcher. action: get, audit.',
@@ -1340,6 +1482,7 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 				),
 				'profile'              => array( 'type' => 'string', 'required' => false ),
 				'brand_name'           => array( 'type' => 'string', 'required' => false ),
+				'person_name'          => array( 'type' => 'string', 'required' => false ),
 				'alternate_name'       => array( 'type' => 'string', 'required' => false ),
 				'url'                  => array( 'type' => 'string', 'required' => false ),
 				'description'          => array( 'type' => 'string', 'required' => false ),
