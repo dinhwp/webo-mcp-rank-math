@@ -1314,6 +1314,15 @@ function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
 	if ( $mutation ) {
 		$args['options'] = array( 'type' => 'object', 'required' => false );
 		$args['modules'] = array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) );
+		$args['cleanup_old_brand'] = array( 'type' => 'boolean', 'required' => false, 'description' => 'When true, run brand-cleanup after applying profile-compatible fields.' );
+		$args['old_brand'] = array( 'type' => 'string', 'required' => false );
+		$args['old_url'] = array( 'type' => 'string', 'required' => false );
+		$args['old_logo'] = array( 'type' => 'string', 'required' => false );
+		$args['old_email_report_logo'] = array( 'type' => 'string', 'required' => false );
+		$args['old_social_profiles'] = array( 'type' => 'object', 'required' => false, 'description' => 'Old social profile URLs keyed by platform.' );
+		$args['replacements'] = array( 'type' => 'object', 'required' => false, 'description' => 'Explicit old=>new replacement map for brand-cleanup.' );
+		$args['old_values'] = array( 'type' => 'object', 'required' => false, 'description' => 'Old=>new map or old values to map to brand_name/url.' );
+		$args['brand_cleanup'] = array( 'type' => 'object', 'required' => false, 'description' => 'Nested brand cleanup payload.' );
 		$args['dry_run'] = array( 'type' => 'boolean', 'required' => false, 'default' => true );
 		$args['force']   = array( 'type' => 'boolean', 'required' => false );
 	} else {
