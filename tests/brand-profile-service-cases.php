@@ -200,6 +200,9 @@ $assert( $patch['general']['knowledgegraph_url'] === 'https://dinhwp.com', 'KG u
 $assert( $patch['general']['knowledgegraph_logo'] === 'https://dinhwp.com/uploads/logo.png', 'KG logo URL is normalized' );
 $assert( $patch['general']['publisher_name'] === 'DinhWP Publisher', 'Publisher name is mapped' );
 $assert( $patch['general']['publisher_logo'] === 'https://dinhwp.com/uploads/publisher.png', 'Publisher logo URL is normalized' );
+$assert( $patch['general']['console_email_logo'] === 'https://dinhwp.com/uploads/publisher.png', 'Email report logo follows normalized publisher logo' );
+$assert( $patch['general']['404_monitor_exclude'][0]['exclude'] === 'https://dinhwp.com/', '404 exclude slash URL is normalized' );
+$assert( $patch['general']['404_monitor_exclude'][1]['exclude'] === 'https://dinhwp.com', '404 exclude bare URL is normalized' );
 $assert( $patch['general']['email'] === 'hello@dinhwp.com', 'Contact email is mapped' );
 $assert( in_array( 'https://www.youtube.com/@dinhwp', $patch['general']['social_networks'], true ), 'Explicit same_as is included in social_networks' );
 $assert( $patch['titles']['website_name'] === 'DinhWP', 'Website name set' );

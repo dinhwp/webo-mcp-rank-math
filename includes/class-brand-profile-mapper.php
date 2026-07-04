@@ -48,6 +48,7 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 			$email         = sanitize_email( (string) ( $input['email'] ?? ( $input['contact_email'] ?? '' ) ) );
 			$publisher     = sanitize_text_field( trim( (string) ( $input['publisher_name'] ?? ( $input['publisher'] ?? $brand_name ) ) ) );
 			$publisher_logo = self::normalize_url( $input['publisher_logo'] ?? ( $input['publisher_image'] ?? $logo ) );
+			$email_report_logo = self::normalize_url( $input['email_report_logo'] ?? ( $input['report_logo'] ?? $publisher_logo ) );
 
 			// Rank Math Knowledge Graph entity type.
 			$kg_type = ( 'personal' === $profile ) ? 'person' : 'organization';
@@ -105,6 +106,16 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 			}
 			if ( '' !== $publisher_logo ) {
 				$general_patch['publisher_logo'] = $publisher_logo;
+			}
+			if ( '' !== $email_report_logo ) {
+				$general_patch['console_email_logo'] = $email_report_logo;
+			}
+			if ( '' !== $url ) {
+				$url_base = rtrim( $url, '/' );
+				$general_patch['404_monitor_exclude'] = array(
+					array( 'exclude' => $url_base . '/', 'comparison' => 'exact' ),
+					array( 'exclude' => $url_base, 'comparison' => 'exact' ),
+				);
 			}
 
 			if ( ! empty( $same_as ) ) {
