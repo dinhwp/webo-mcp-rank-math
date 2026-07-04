@@ -73,7 +73,7 @@ if ( ! function_exists( 'delete_transient' ) ) {
 	function delete_transient( $k ) {} // phpcs:ignore
 }
 if ( ! function_exists( 'get_option' ) ) {
-	function get_option( $k, $default = null ) { return $default; } // phpcs:ignore
+	function get_option( $k, $default = null ) { return $GLOBALS['webo_test_options'][ $k ] ?? $default; } // phpcs:ignore
 }
 if ( ! function_exists( 'update_option' ) ) {
 	function update_option( $k, $v, $autoload = null ) {} // phpcs:ignore
@@ -99,6 +99,7 @@ require_once $root . '/includes/class-rank-math-options-repository.php';
 require_once $root . '/includes/class-snapshot-service.php';
 require_once $root . '/includes/class-brand-profile-validator.php';
 require_once $root . '/includes/class-brand-profile-mapper.php';
+require_once $root . '/includes/class-migration-service.php';
 require_once $root . '/includes/class-brand-profile-service.php';
 
 // ---------------------------------------------------------------------------
@@ -258,6 +259,54 @@ $assert( is_array( $response['diff'] ?? null ), 'Response has diff array' );
 $assert( isset( $response['would_change'] ), 'Response has would_change' );
 $assert( ! array_key_exists( 'success', $response ), 'No misleading success key on dry_run' );
 $assert( ! array_key_exists( 'updated', $response ), 'No misleading updated key on dry_run' );
+
+// Complete profile applies the canonical profile and then cleans old entity values.
+$GLOBALS['webo_test_options'] = array(
+	'rank-math-options-general' => array(
+		'knowledgegraph_name' => 'Webo',
+		'knowledgegraph_logo' => 'https://webo.vn/logo.png',
+		'publisher_name'      => 'Webo Publisher',
+		'publisher_logo'      => 'https://webo.vn/publisher.png',
+		'console_email_logo'  => 'https://webo.vn/email.png',
+		'email'               => 'hello@webo.vn',
+		'social_networks'     => array( 'https://facebook.com/webo', 'https://github.com/webo' ),
+	),
+	'rank-math-options-titles' => array(
+		'website_name'           => 'Webo',
+		'nofollow_external_links'=> 'on',
+	),
+	'rank-math-options-social' => array(
+		'open_graph_image' => 'https://webo.vn/og.png',
+		'social_urls'      => array( 'https://facebook.com/webo', 'https://github.com/webo' ),
+	),
+	'rank-math-options-sitemap'          => array(),
+	'rank-math-options-instant-indexing' => array(),
+);
+
+$complete = WeboMcpRankMath_BrandProfileService::complete( array_merge( $input, array(
+	'action'               => 'complete-brand-profile',
+	'old_brand'            => 'Webo',
+	'old_url'              => 'https://webo.vn',
+	'old_logo'             => 'https://webo.vn/logo.png',
+	'old_open_graph_image' => 'https://webo.vn/og.png',
+	'old_publisher'        => array(
+		'name' => 'Webo Publisher',
+		'logo' => 'https://webo.vn/publisher.png',
+	),
+	'old_email_report_logo'=> 'https://webo.vn/email.png',
+	'old_contact'          => array( 'email' => 'hello@webo.vn' ),
+	'old_same_as'          => array( 'https://facebook.com/webo', 'https://github.com/webo' ),
+) ) );
+
+$assert( ! is_wp_error( $complete ), 'Complete brand profile dry run is not WP_Error' );
+$assert( true === ( $complete['dry_run'] ?? null ), 'Complete brand profile dry_run=true' );
+$assert( 'complete-brand-profile' === ( $complete['action'] ?? '' ), 'Complete brand profile action context' );
+$assert( isset( $complete['profile_result'] ), 'Complete brand profile includes profile result' );
+$assert( isset( $complete['cleanup_result'] ), 'Complete brand profile includes cleanup result' );
+$assert( true === ( $complete['would_change'] ?? null ), 'Complete brand profile would_change=true' );
+$assert( ( $complete['planned_count'] ?? 0 ) >= 10, 'Complete brand profile planned_count includes profile and cleanup changes' );
+$assert( in_array( 'general.console_email_logo', $complete['changed_fields'], true ), 'Complete brand profile covers email report logo' );
+$assert( in_array( 'social.open_graph_image', $complete['changed_fields'], true ), 'Complete brand profile covers Open Graph image' );
 
 // Validation failure path
 $bad_input = array( 'brand_name' => 'X', 'dry_run' => true ); // missing profile

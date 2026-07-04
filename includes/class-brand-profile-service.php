@@ -156,6 +156,165 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileService' ) ) {
 		}
 
 		/**
+		 * Execute a complete brand profile: apply the canonical profile and clean up
+		 * leftover old brand/entity/social/contact values across all Rank Math options.
+		 *
+		 * @param array<string,mixed> $input Tool input.
+		 * @return array<string,mixed>|\WP_Error
+		 */
+		public static function complete( $input ) {
+			$input   = WeboMcpRankMath_BrandProfileMapper::normalize_input( $input );
+			$dry_run = isset( $input['dry_run'] ) ? webo_mcp_is_truthy( $input['dry_run'] ) : true;
+
+			$profile_args            = $input;
+			$profile_args['dry_run'] = $dry_run;
+			$profile                 = self::apply( $profile_args );
+			if ( is_wp_error( $profile ) ) {
+				return $profile;
+			}
+
+			$cleanup_args            = self::build_complete_cleanup_args( $input );
+			$cleanup_args['dry_run'] = $dry_run;
+			$cleanup                 = null;
+			$warnings                = array();
+
+			if ( self::has_cleanup_signal( $cleanup_args ) ) {
+				$cleanup = WeboMcpRankMath_MigrationService::cleanup( $cleanup_args );
+				if ( is_wp_error( $cleanup ) ) {
+					return $cleanup;
+				}
+			} else {
+				$warnings[] = 'No old brand/entity values were provided for cleanup.';
+			}
+
+			$profile_changed = self::response_changed( $profile );
+			$cleanup_changed = is_array( $cleanup ) ? self::response_changed( $cleanup ) : false;
+			$planned_count   = self::response_count( $profile ) + ( is_array( $cleanup ) ? self::response_count( $cleanup ) : 0 );
+
+			return webo_mcp_mutation_response( array(
+				'dry_run'       => $dry_run,
+				'would_change'  => $profile_changed || $cleanup_changed,
+				'changed'       => $profile_changed || $cleanup_changed,
+				'planned_count' => $planned_count,
+				'changed_count' => $planned_count,
+				'context'       => array(
+					'action'         => 'complete-brand-profile',
+					'profile'        => $input['profile'] ?? 'organization',
+					'brand_name'     => $input['brand_name'] ?? '',
+					'profile_result' => $profile,
+					'cleanup_result' => $cleanup,
+					'changed_fields' => array_values( array_unique( array_merge(
+						self::response_changed_fields( $profile ),
+						is_array( $cleanup ) ? self::response_changed_fields( $cleanup ) : array()
+					) ) ),
+					'warnings'       => $warnings,
+				),
+			) );
+		}
+
+		/**
+		 * Build a cleanup payload from a complete profile request.
+		 *
+		 * @param array<string,mixed> $input Normalized input.
+		 * @return array<string,mixed>
+		 */
+		private static function build_complete_cleanup_args( $input ) {
+			$args = $input;
+			if ( isset( $input['old_brand'] ) && ! isset( $args['from'] ) ) {
+				$args['from'] = $input['old_brand'];
+			}
+			if ( isset( $input['brand_name'] ) && ! isset( $args['to'] ) ) {
+				$args['to'] = $input['brand_name'];
+			}
+			if ( ! isset( $args['old_contact_email'] ) && isset( $input['old_contact']['email'] ) ) {
+				$args['old_contact_email'] = $input['old_contact']['email'];
+			}
+			if ( ! isset( $args['old_email'] ) && isset( $input['old_contact']['email'] ) ) {
+				$args['old_email'] = $input['old_contact']['email'];
+			}
+			if ( ! isset( $args['old_publisher_logo'] ) && isset( $input['old_publisher']['logo'] ) ) {
+				$args['old_publisher_logo'] = $input['old_publisher']['logo'];
+			}
+			if ( ! isset( $args['old_publisher_name'] ) && isset( $input['old_publisher']['name'] ) ) {
+				$args['old_publisher_name'] = $input['old_publisher']['name'];
+			}
+			return $args;
+		}
+
+		/**
+		 * Check whether a payload has enough old values for cleanup.
+		 *
+		 * @param array<string,mixed> $input Cleanup input.
+		 * @return bool
+		 */
+		private static function has_cleanup_signal( $input ) {
+			foreach ( array(
+				'brand_cleanup', 'replacements', 'old_values', 'old_brand', 'from', 'old_url',
+				'old_logo', 'old_open_graph_image', 'old_publisher_logo', 'old_email_report_logo',
+				'old_email', 'old_contact_email', 'old_social_profiles', 'old_same_as',
+				'old_organization', 'old_person', 'old_publisher', 'old_contact',
+			) as $key ) {
+				if ( ! empty( $input[ $key ] ) ) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		/**
+		 * Extract changed fields from a nested mutation response.
+		 *
+		 * @param array<string,mixed> $response Mutation response.
+		 * @return string[]
+		 */
+		private static function response_changed_fields( $response ) {
+			if ( ! is_array( $response ) ) {
+				return array();
+			}
+			return isset( $response['changed_fields'] ) && is_array( $response['changed_fields'] )
+				? $response['changed_fields']
+				: array();
+		}
+
+		/**
+		 * Determine if a nested mutation response changed or would change anything.
+		 *
+		 * @param array<string,mixed> $response Mutation response.
+		 * @return bool
+		 */
+		private static function response_changed( $response ) {
+			if ( ! is_array( $response ) ) {
+				return false;
+			}
+			if ( isset( $response['would_change'] ) ) {
+				return (bool) $response['would_change'];
+			}
+			if ( isset( $response['changed'] ) ) {
+				return (bool) $response['changed'];
+			}
+			return self::response_count( $response ) > 0;
+		}
+
+		/**
+		 * Extract planned/changed count from a nested mutation response.
+		 *
+		 * @param array<string,mixed> $response Mutation response.
+		 * @return int
+		 */
+		private static function response_count( $response ) {
+			if ( ! is_array( $response ) ) {
+				return 0;
+			}
+			if ( isset( $response['planned_count'] ) ) {
+				return (int) $response['planned_count'];
+			}
+			if ( isset( $response['changed_count'] ) ) {
+				return (int) $response['changed_count'];
+			}
+			return count( self::response_changed_fields( $response ) );
+		}
+
+		/**
 		 * Build context-aware warnings (missing recommended fields, etc.).
 		 *
 		 * @param array<string,mixed> $input

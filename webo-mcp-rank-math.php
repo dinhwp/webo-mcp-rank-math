@@ -1302,8 +1302,20 @@ function webo_mcp_rank_math_apply_profile_tool_arguments() {
 		'old_brand'             => array( 'type' => 'string', 'required' => false ),
 		'old_url'               => array( 'type' => 'string', 'required' => false ),
 		'old_logo'              => array( 'type' => 'string', 'required' => false ),
+		'old_open_graph_image'  => array( 'type' => 'string', 'required' => false ),
+		'old_publisher_name'    => array( 'type' => 'string', 'required' => false ),
+		'old_publisher_logo'    => array( 'type' => 'string', 'required' => false ),
 		'old_email_report_logo' => array( 'type' => 'string', 'required' => false ),
+		'old_email'             => array( 'type' => 'string', 'required' => false ),
+		'old_contact_email'     => array( 'type' => 'string', 'required' => false ),
+		'old_person_name'       => array( 'type' => 'string', 'required' => false ),
+		'old_organization_name' => array( 'type' => 'string', 'required' => false ),
+		'old_organization'      => array( 'type' => 'object', 'required' => false ),
+		'old_person'            => array( 'type' => 'object', 'required' => false ),
+		'old_publisher'         => array( 'type' => 'object', 'required' => false ),
+		'old_contact'           => array( 'type' => 'object', 'required' => false ),
 		'old_social_profiles'   => array( 'type' => 'object', 'required' => false, 'description' => 'Old social profile URLs keyed by platform.' ),
+		'old_same_as'           => array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) ),
 		'replacements'          => array( 'type' => 'object', 'required' => false, 'description' => 'Explicit old=>new replacement map for cleanup.' ),
 		'old_values'            => array( 'type' => 'object', 'required' => false, 'description' => 'Old=>new map or old values to map to brand_name/url.' ),
 		'brand_cleanup'         => array( 'type' => 'object', 'required' => false, 'description' => 'Nested brand cleanup payload.' ),
@@ -1318,7 +1330,7 @@ function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
 			'type'     => 'string',
 			'required' => true,
 			'enum'     => $mutation
-				? array( 'update-options', 'update-modules', 'flush-sitemap-cache', 'apply-basic-seo', 'optimize-basic', 'optimize-basic-settings', 'seo-baseline', 'apply-profile', 'apply-brand-profile', 'migrate-brand', 'brand-cleanup', 'configure-sitemap-profile', 'configure-schema-defaults', 'fix-brand-seo' )
+				? array( 'update-options', 'update-modules', 'flush-sitemap-cache', 'apply-basic-seo', 'optimize-basic', 'optimize-basic-settings', 'seo-baseline', 'apply-profile', 'apply-brand-profile', 'complete-brand-profile', 'entity-cleanup', 'migrate-brand', 'brand-cleanup', 'configure-sitemap-profile', 'configure-schema-defaults', 'fix-brand-seo' )
 				: array( 'plugin-status', 'get-options', 'get-modules' ),
 		),
 		'site_id' => array( 'type' => 'integer', 'required' => false ),
@@ -1343,8 +1355,20 @@ function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
 		$args['old_brand'] = array( 'type' => 'string', 'required' => false );
 		$args['old_url'] = array( 'type' => 'string', 'required' => false );
 		$args['old_logo'] = array( 'type' => 'string', 'required' => false );
+		$args['old_open_graph_image'] = array( 'type' => 'string', 'required' => false );
+		$args['old_publisher_name'] = array( 'type' => 'string', 'required' => false );
+		$args['old_publisher_logo'] = array( 'type' => 'string', 'required' => false );
 		$args['old_email_report_logo'] = array( 'type' => 'string', 'required' => false );
+		$args['old_email'] = array( 'type' => 'string', 'required' => false );
+		$args['old_contact_email'] = array( 'type' => 'string', 'required' => false );
+		$args['old_person_name'] = array( 'type' => 'string', 'required' => false );
+		$args['old_organization_name'] = array( 'type' => 'string', 'required' => false );
+		$args['old_organization'] = array( 'type' => 'object', 'required' => false );
+		$args['old_person'] = array( 'type' => 'object', 'required' => false );
+		$args['old_publisher'] = array( 'type' => 'object', 'required' => false );
+		$args['old_contact'] = array( 'type' => 'object', 'required' => false );
 		$args['old_social_profiles'] = array( 'type' => 'object', 'required' => false, 'description' => 'Old social profile URLs keyed by platform.' );
+		$args['old_same_as'] = array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) );
 		$args['replacements'] = array( 'type' => 'object', 'required' => false, 'description' => 'Explicit old=>new replacement map for brand-cleanup.' );
 		$args['old_values'] = array( 'type' => 'object', 'required' => false, 'description' => 'Old=>new map or old values to map to brand_name/url.' );
 		$args['brand_cleanup'] = array( 'type' => 'object', 'required' => false, 'description' => 'Nested brand cleanup payload.' );
@@ -1565,14 +1589,17 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 			},
 		),
 		'webo-rank-math/semantic-action' => array(
-			'description' => 'AI-first semantic actions for brand identity, homepage, social, schema, and sitemap. action: apply-brand-profile, migrate-brand, brand-cleanup, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo. All mutations default to dry_run=true.',
+			'description' => 'AI-first semantic actions for brand identity, homepage, social, schema, and sitemap. action: apply-brand-profile, complete-brand-profile, entity-cleanup, migrate-brand, brand-cleanup, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo. All mutations default to dry_run=true.',
 			'arguments'   => array(
 				'action' => array(
 					'type'     => 'string',
 					'required' => true,
 					'enum'     => array(
 						'apply-brand-profile',
+						'complete-brand-profile',
+						'entity-cleanup',
 						'migrate-brand',
+						'brand-cleanup',
 						'configure-homepage',
 						'configure-social',
 						'configure-schema-defaults',
@@ -1613,8 +1640,20 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 				'old_brand'            => array( 'type' => 'string', 'required' => false ),
 				'old_url'              => array( 'type' => 'string', 'required' => false ),
 				'old_logo'             => array( 'type' => 'string', 'required' => false ),
+				'old_open_graph_image' => array( 'type' => 'string', 'required' => false ),
+				'old_publisher_name'   => array( 'type' => 'string', 'required' => false ),
+				'old_publisher_logo'   => array( 'type' => 'string', 'required' => false ),
 				'old_email_report_logo' => array( 'type' => 'string', 'required' => false ),
+				'old_email'            => array( 'type' => 'string', 'required' => false ),
+				'old_contact_email'    => array( 'type' => 'string', 'required' => false ),
+				'old_person_name'      => array( 'type' => 'string', 'required' => false ),
+				'old_organization_name' => array( 'type' => 'string', 'required' => false ),
+				'old_organization'     => array( 'type' => 'object', 'required' => false ),
+				'old_person'           => array( 'type' => 'object', 'required' => false ),
+				'old_publisher'        => array( 'type' => 'object', 'required' => false ),
+				'old_contact'          => array( 'type' => 'object', 'required' => false ),
 				'old_social_profiles'  => array( 'type' => 'object', 'required' => false ),
+				'old_same_as'          => array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) ),
 				'replacements'         => array( 'type' => 'object', 'required' => false ),
 				'old_values'           => array( 'type' => 'object', 'required' => false ),
 				'brand_cleanup'        => array( 'type' => 'object', 'required' => false ),

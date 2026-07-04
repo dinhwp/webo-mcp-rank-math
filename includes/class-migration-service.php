@@ -326,17 +326,84 @@ if ( ! class_exists( 'WeboMcpRankMath_MigrationService' ) ) {
 			}
 
 			self::add_replacement( $replacements, $input['old_brand'] ?? ( $input['from'] ?? null ), $input['brand_name'] ?? ( $input['to'] ?? null ) );
+			self::add_replacement( $replacements, $input['old_organization_name'] ?? null, $input['brand_name'] ?? null );
+			self::add_replacement( $replacements, $input['old_company_name'] ?? null, $input['brand_name'] ?? null );
+			self::add_replacement( $replacements, $input['old_person_name'] ?? null, $input['person_name'] ?? ( $input['brand_name'] ?? null ) );
+			self::add_replacement( $replacements, $input['old_publisher_name'] ?? null, $input['publisher_name'] ?? ( $input['brand_name'] ?? null ) );
 			self::add_replacement( $replacements, $input['old_url'] ?? null, $input['url'] ?? null );
 			self::add_replacement( $replacements, $input['old_logo'] ?? null, $input['logo'] ?? null );
+			self::add_replacement( $replacements, $input['old_open_graph_image'] ?? null, $input['open_graph_image'] ?? ( $input['logo'] ?? null ) );
+			self::add_replacement( $replacements, $input['old_publisher_logo'] ?? null, $input['publisher_logo'] ?? ( $input['logo'] ?? null ) );
 			self::add_replacement( $replacements, $input['old_email_report_logo'] ?? null, $input['email_report_logo'] ?? ( $input['logo'] ?? null ) );
+			self::add_replacement( $replacements, $input['old_email'] ?? null, $input['email'] ?? ( $input['contact_email'] ?? null ) );
+			self::add_replacement( $replacements, $input['old_contact_email'] ?? null, $input['contact_email'] ?? ( $input['email'] ?? null ) );
+
+			self::add_nested_replacements( $replacements, $input['old_organization'] ?? null, $input['organization'] ?? null, array(
+				'name' => 'brand_name',
+				'url'  => 'url',
+				'logo' => 'logo',
+			), $input );
+			self::add_nested_replacements( $replacements, $input['old_person'] ?? null, $input['person'] ?? null, array(
+				'name' => 'person_name',
+				'url'  => 'url',
+				'image'=> 'logo',
+			), $input );
+			self::add_nested_replacements( $replacements, $input['old_publisher'] ?? null, $input['publisher'] ?? null, array(
+				'name' => 'publisher_name',
+				'logo' => 'publisher_logo',
+				'image'=> 'publisher_logo',
+			), $input );
+			self::add_nested_replacements( $replacements, $input['old_contact'] ?? null, $input['contact'] ?? null, array(
+				'email' => 'contact_email',
+				'phone' => 'phone',
+			), $input );
 
 			$old_social = isset( $input['old_social_profiles'] ) && is_array( $input['old_social_profiles'] ) ? $input['old_social_profiles'] : array();
 			$new_social = isset( $input['social'] ) && is_array( $input['social'] ) ? $input['social'] : array();
 			foreach ( array( 'facebook', 'twitter', 'instagram', 'linkedin', 'youtube', 'github', 'pinterest' ) as $field ) {
 				self::add_replacement( $replacements, $input[ "old_{$field}" ] ?? ( $old_social[ $field ] ?? null ), $input[ $field ] ?? ( $new_social[ $field ] ?? null ) );
 			}
+			self::add_pairwise_replacements( $replacements, $input['old_same_as'] ?? null, $input['same_as'] ?? ( $input['sameAs'] ?? null ) );
 
 			return $replacements;
+		}
+
+		/**
+		 * Add replacements from matching keys in old/new nested objects.
+		 *
+		 * @param array<string,string> $replacements Replacement map.
+		 * @param mixed                $old          Old nested object.
+		 * @param mixed                $new          New nested object.
+		 * @param array<string,string> $fallbacks    old key => root input fallback key.
+		 * @param array<string,mixed>  $input        Root input.
+		 */
+		private static function add_nested_replacements( &$replacements, $old, $new, $fallbacks, $input ) {
+			if ( ! is_array( $old ) ) {
+				return;
+			}
+			$new = is_array( $new ) ? $new : array();
+			foreach ( $old as $key => $old_value ) {
+				$fallback_key = $fallbacks[ $key ] ?? $key;
+				$new_value    = $new[ $key ] ?? ( $input[ $fallback_key ] ?? null );
+				self::add_replacement( $replacements, $old_value, $new_value );
+			}
+		}
+
+		/**
+		 * Add replacements from two same-length lists, used for sameAs/profile URL arrays.
+		 *
+		 * @param array<string,string> $replacements Replacement map.
+		 * @param mixed                $old_values   Old values.
+		 * @param mixed                $new_values   New values.
+		 */
+		private static function add_pairwise_replacements( &$replacements, $old_values, $new_values ) {
+			if ( ! is_array( $old_values ) || ! is_array( $new_values ) ) {
+				return;
+			}
+			$new_values = array_values( $new_values );
+			foreach ( array_values( $old_values ) as $index => $old_value ) {
+				self::add_replacement( $replacements, $old_value, $new_values[ $index ] ?? null );
+			}
 		}
 
 		/**
@@ -352,7 +419,22 @@ if ( ! class_exists( 'WeboMcpRankMath_MigrationService' ) ) {
 			if ( '' === $from || $from === $to ) {
 				return;
 			}
-			$replacements[ $from ] = $to;
+			$replacements[ self::normalize_replacement_value( $from ) ] = self::normalize_replacement_value( $to );
+		}
+
+		/**
+		 * Normalize URL-like replacement values so cleanup does not introduce accidental //.
+		 *
+		 * @param string $value Replacement value.
+		 * @return string
+		 */
+		private static function normalize_replacement_value( $value ) {
+			$value = trim( (string) $value );
+			if ( preg_match( '#^https?://#i', $value ) ) {
+				$value = preg_replace( '#(?<!:)/{2,}#', '/', $value );
+				return esc_url_raw( $value );
+			}
+			return $value;
 		}
 
 		/**

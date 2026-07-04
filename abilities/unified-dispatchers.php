@@ -764,7 +764,7 @@ function webo_rank_math_config_mutate( $input ) {
 
 	// Semantic (AI-first) actions are also reachable via config-mutate for backward compat.
 	$semantic_actions = array(
-		'apply-brand-profile', 'migrate-brand', 'brand-cleanup', 'configure-homepage', 'configure-social',
+		'apply-brand-profile', 'complete-brand-profile', 'entity-cleanup', 'migrate-brand', 'brand-cleanup', 'configure-homepage', 'configure-social',
 		'configure-schema-defaults', 'configure-sitemap-profile', 'audit-brand-seo', 'fix-brand-seo',
 	);
 	if ( in_array( $action, $semantic_actions, true ) && function_exists( 'webo_rank_math_semantic_action' ) ) {

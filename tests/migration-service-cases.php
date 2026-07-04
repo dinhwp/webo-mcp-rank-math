@@ -178,6 +178,10 @@ $GLOBALS['webo_test_options'] = array(
 		'knowledgegraph_name'   => 'Webo Company',
 		'knowledgegraph_url'    => 'https://webo.vn',
 		'knowledgegraph_logo'   => 'https://webo.vn/logo.png',
+		'publisher_name'        => 'Webo Publisher',
+		'publisher_logo'        => 'https://webo.vn/publisher.png',
+		'console_email_logo'    => 'https://webo.vn/report-logo.png',
+		'email'                 => 'hello@webo.vn',
 		'social_url_facebook'   => 'https://facebook.com/webo',
 		'email_report_logo_url' => 'https://webo.vn/report-logo.png',
 	),
@@ -188,6 +192,7 @@ $GLOBALS['webo_test_options'] = array(
 	),
 	'rank-math-options-social' => array(
 		'facebook_link' => 'https://facebook.com/webo',
+		'open_graph_image' => 'https://webo.vn/og.png',
 		'social_urls'   => array( 'https://facebook.com/webo', 'https://www.linkedin.com/company/webo', 'https://www.youtube.com/@Webovn' ),
 	),
 	'rank-math-options-sitemap'          => array(),
@@ -201,8 +206,18 @@ $response = WeboMcpRankMath_MigrationService::cleanup( array(
 	'url'                   => 'https://dinhwp.com',
 	'old_logo'              => 'https://webo.vn/logo.png',
 	'logo'                  => 'https://dinhwp.com/logo.png',
+	'old_open_graph_image'  => 'https://webo.vn/og.png',
+	'open_graph_image'      => 'https://dinhwp.com//og.png',
+	'old_publisher'         => array(
+		'name' => 'Webo Publisher',
+		'logo' => 'https://webo.vn/publisher.png',
+	),
+	'publisher_name'        => 'DinhWP Publisher',
+	'publisher_logo'        => 'https://dinhwp.com//publisher.png',
 	'old_email_report_logo' => 'https://webo.vn/report-logo.png',
-	'email_report_logo'     => 'https://dinhwp.com/report-logo.png',
+	'email_report_logo'     => 'https://dinhwp.com//report-logo.png',
+	'old_contact'           => array( 'email' => 'hello@webo.vn' ),
+	'contact_email'         => 'hello@dinhwp.com',
 	'old_social_profiles'   => array(
 		'facebook' => 'https://facebook.com/webo',
 		'linkedin' => 'https://www.linkedin.com/company/webo',
@@ -223,11 +238,26 @@ $assert( ( $response['replacement_count'] ?? 0 ) >= 5, 'Brand cleanup replacemen
 
 $found_logo   = false;
 $found_social = false;
+$found_og     = false;
+$found_email  = false;
+$found_publisher = false;
 $preserved_handle = false;
 foreach ( $response['diff'] as $item ) {
 	if ( 'general' === $item['option_group'] && 'knowledgegraph_logo' === $item['key'] ) {
 		$found_logo = true;
 		$assert( 'https://dinhwp.com/logo.png' === $item['after'], 'Brand cleanup replaces logo URL' );
+	}
+	if ( 'general' === $item['option_group'] && 'email' === $item['key'] ) {
+		$found_email = true;
+		$assert( 'hello@dinhwp.com' === $item['after'], 'Brand cleanup replaces contact email' );
+	}
+	if ( 'general' === $item['option_group'] && 'publisher_logo' === $item['key'] ) {
+		$found_publisher = true;
+		$assert( 'https://dinhwp.com/publisher.png' === $item['after'], 'Brand cleanup normalizes and replaces publisher logo' );
+	}
+	if ( 'social' === $item['option_group'] && 'open_graph_image' === $item['key'] ) {
+		$found_og = true;
+		$assert( 'https://dinhwp.com/og.png' === $item['after'], 'Brand cleanup normalizes and replaces Open Graph image' );
 	}
 	if ( 'social' === $item['option_group'] && 'social_urls' === $item['key'] ) {
 		$found_social = true;
@@ -236,6 +266,9 @@ foreach ( $response['diff'] as $item ) {
 	}
 }
 $assert( $found_logo, 'Brand cleanup diff contains logo change' );
+$assert( $found_email, 'Brand cleanup diff contains contact email change' );
+$assert( $found_publisher, 'Brand cleanup diff contains publisher logo change' );
+$assert( $found_og, 'Brand cleanup diff contains Open Graph image change' );
 $assert( $found_social, 'Brand cleanup diff contains nested social change' );
 $assert( $preserved_handle, 'Brand cleanup preserves embedded handle text like Webovn' );
 
