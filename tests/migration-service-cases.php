@@ -188,7 +188,7 @@ $GLOBALS['webo_test_options'] = array(
 	),
 	'rank-math-options-social' => array(
 		'facebook_link' => 'https://facebook.com/webo',
-		'social_urls'   => array( 'https://facebook.com/webo', 'https://www.linkedin.com/company/webo' ),
+		'social_urls'   => array( 'https://facebook.com/webo', 'https://www.linkedin.com/company/webo', 'https://www.youtube.com/@Webovn' ),
 	),
 	'rank-math-options-sitemap'          => array(),
 	'rank-math-options-instant-indexing' => array(),
@@ -223,6 +223,7 @@ $assert( ( $response['replacement_count'] ?? 0 ) >= 5, 'Brand cleanup replacemen
 
 $found_logo   = false;
 $found_social = false;
+$preserved_handle = false;
 foreach ( $response['diff'] as $item ) {
 	if ( 'general' === $item['option_group'] && 'knowledgegraph_logo' === $item['key'] ) {
 		$found_logo = true;
@@ -231,10 +232,12 @@ foreach ( $response['diff'] as $item ) {
 	if ( 'social' === $item['option_group'] && 'social_urls' === $item['key'] ) {
 		$found_social = true;
 		$assert( in_array( 'https://facebook.com/dinhwp', $item['after'], true ), 'Brand cleanup replaces nested social URL' );
+		$preserved_handle = in_array( 'https://www.youtube.com/@Webovn', $item['after'], true );
 	}
 }
 $assert( $found_logo, 'Brand cleanup diff contains logo change' );
 $assert( $found_social, 'Brand cleanup diff contains nested social change' );
+$assert( $preserved_handle, 'Brand cleanup preserves embedded handle text like Webovn' );
 
 // ---------------------------------------------------------------------------
 // Summary

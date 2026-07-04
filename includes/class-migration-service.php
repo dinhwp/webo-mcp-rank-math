@@ -398,6 +398,10 @@ if ( ! class_exists( 'WeboMcpRankMath_MigrationService' ) ) {
 		 */
 		private static function replace_in_value( $value, $from, $to ) {
 			if ( is_string( $value ) ) {
+				if ( self::should_replace_with_token_boundaries( $from ) ) {
+					return preg_replace( '/(?<![A-Za-z0-9])' . preg_quote( $from, '/' ) . '(?![A-Za-z0-9])/', $to, $value );
+				}
+
 				return str_replace( $from, $to, $value );
 			}
 
@@ -410,6 +414,19 @@ if ( ! class_exists( 'WeboMcpRankMath_MigrationService' ) ) {
 			}
 
 			return $value;
+		}
+
+		/**
+		 * Plain brand names should not rewrite usernames/handles such as Webovn.
+		 *
+		 * @param string $from String to find.
+		 * @return bool
+		 */
+		private static function should_replace_with_token_boundaries( $from ) {
+			return (bool) preg_match( '/^[A-Za-z0-9][A-Za-z0-9 _.-]*[A-Za-z0-9]$|^[A-Za-z0-9]$/', $from )
+				&& false === strpos( $from, '://' )
+				&& false === strpos( $from, '/' )
+				&& false === strpos( $from, '@' );
 		}
 
 		/**
