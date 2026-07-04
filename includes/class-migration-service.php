@@ -171,9 +171,220 @@ if ( ! class_exists( 'WeboMcpRankMath_MigrationService' ) ) {
 			) );
 		}
 
+
+		/**
+		 * Execute a multi-value brand cleanup across all Rank Math option groups.
+		 *
+		 * @param array<string,mixed> $input Tool input: replacements, old_brand, brand_name, old_url, url, old_logo, logo, dry_run.
+		 * @return array<string,mixed>|\WP_Error
+		 */
+		public static function cleanup( $input ) {
+			$replacements = self::build_replacements( $input );
+			if ( empty( $replacements ) ) {
+				return new WP_Error(
+					'webo_mcp_brand_cleanup_empty',
+					'Provide replacements, old_values, old_brand + brand_name, old_url + url, old_logo + logo, or old_social_profiles + social.'
+				);
+			}
+
+			$dry_run = isset( $input['dry_run'] ) ? webo_mcp_is_truthy( $input['dry_run'] ) : true;
+
+			$all_groups  = WeboMcpRankMath_OptionsRepository::option_group_map();
+			$current_all = array();
+			foreach ( $all_groups as $short => $wp_name ) {
+				$current_all[ $short ] = WeboMcpRankMath_OptionsRepository::get_group( $short );
+			}
+
+			$patch          = array();
+			$diff           = array();
+			$changed_fields = array();
+
+			foreach ( $current_all as $group => $options ) {
+				$patched_group = self::replace_many_in_value( $options, $replacements );
+				$group_diff    = self::diff_values( $options, $patched_group, $group );
+				if ( ! empty( $group_diff ) ) {
+					$patch[ $group ] = $patched_group;
+					$diff            = array_merge( $diff, $group_diff );
+					foreach ( $group_diff as $item ) {
+						if ( ! empty( $item['changed'] ) ) {
+							$changed_fields[] = $group . '.' . $item['key'];
+						}
+					}
+				}
+			}
+
+			$planned_count = count( $changed_fields );
+			$context       = array(
+				'action'            => 'brand-cleanup',
+				'replacement_count' => count( $replacements ),
+				'changed_fields'    => $changed_fields,
+			);
+
+			if ( $dry_run ) {
+				return webo_mcp_mutation_response( array(
+					'dry_run'       => true,
+					'would_change'  => $planned_count > 0,
+					'planned_count' => $planned_count,
+					'diff'          => $diff,
+					'context'       => $context,
+				) );
+			}
+
+			if ( 0 === $planned_count ) {
+				$context['warnings'] = array( 'No Rank Math option values matched the provided cleanup replacements.' );
+				return webo_mcp_mutation_response( array(
+					'dry_run'       => false,
+					'changed'       => false,
+					'changed_count' => 0,
+					'diff'          => array(),
+					'context'       => $context,
+				) );
+			}
+
+			$option_names = array();
+			foreach ( array_keys( $patch ) as $group ) {
+				if ( isset( $all_groups[ $group ] ) ) {
+					$option_names[] = $all_groups[ $group ];
+				}
+			}
+			$snapshot = WeboMcpRankMath_SnapshotService::create( 'brand-cleanup', $option_names );
+
+			$write_error = null;
+			try {
+				foreach ( $patch as $group => $patched_options ) {
+					$wp_name = $all_groups[ $group ] ?? null;
+					if ( null === $wp_name ) {
+						continue;
+					}
+					$success = WeboMcpRankMath_OptionsRepository::set( $wp_name, $patched_options );
+					if ( ! $success ) {
+						throw new RuntimeException( "Failed to write option group: {$group}" );
+					}
+				}
+			} catch ( Exception $e ) {
+				$write_error = $e->getMessage();
+			}
+
+			if ( null !== $write_error ) {
+				$rollback = WeboMcpRankMath_SnapshotService::rollback( $snapshot['snapshot_id'] );
+				return new WP_Error(
+					'webo_mcp_brand_cleanup_write_failed',
+					$write_error,
+					array(
+						'rollback'    => $rollback,
+						'snapshot_id' => $snapshot['snapshot_id'],
+					)
+				);
+			}
+
+			webo_rank_math_flush_sitemap_cache();
+			$context['snapshot_id'] = $snapshot['snapshot_id'];
+
+			return webo_mcp_mutation_response( array(
+				'dry_run'       => false,
+				'changed'       => true,
+				'changed_count' => $planned_count,
+				'diff'          => $diff,
+				'context'       => $context,
+			) );
+		}
+
 		// -------------------------------------------------------------------------
 		// Private helpers
 		// -------------------------------------------------------------------------
+
+
+		/**
+		 * Build an old=>new replacement map from generic cleanup input.
+		 *
+		 * @param array<string,mixed> $input Tool input.
+		 * @return array<string,string>
+		 */
+		private static function build_replacements( $input ) {
+			$input = (array) $input;
+			if ( isset( $input['brand_cleanup'] ) && is_array( $input['brand_cleanup'] ) ) {
+				$input = array_merge( $input['brand_cleanup'], $input );
+				unset( $input['brand_cleanup'] );
+			}
+
+			$replacements = array();
+			if ( isset( $input['replacements'] ) && is_array( $input['replacements'] ) ) {
+				foreach ( $input['replacements'] as $from => $to ) {
+					self::add_replacement( $replacements, $from, $to );
+				}
+			}
+
+			if ( isset( $input['old_values'] ) && is_array( $input['old_values'] ) ) {
+				foreach ( $input['old_values'] as $from => $to ) {
+					if ( is_int( $from ) ) {
+						$to = self::replacement_target_for_old_value( (string) $to, $input );
+						self::add_replacement( $replacements, $input['old_values'][ $from ], $to );
+					} else {
+						self::add_replacement( $replacements, $from, $to );
+					}
+				}
+			}
+
+			self::add_replacement( $replacements, $input['old_brand'] ?? ( $input['from'] ?? null ), $input['brand_name'] ?? ( $input['to'] ?? null ) );
+			self::add_replacement( $replacements, $input['old_url'] ?? null, $input['url'] ?? null );
+			self::add_replacement( $replacements, $input['old_logo'] ?? null, $input['logo'] ?? null );
+			self::add_replacement( $replacements, $input['old_email_report_logo'] ?? null, $input['email_report_logo'] ?? ( $input['logo'] ?? null ) );
+
+			$old_social = isset( $input['old_social_profiles'] ) && is_array( $input['old_social_profiles'] ) ? $input['old_social_profiles'] : array();
+			$new_social = isset( $input['social'] ) && is_array( $input['social'] ) ? $input['social'] : array();
+			foreach ( array( 'facebook', 'twitter', 'instagram', 'linkedin', 'youtube', 'github', 'pinterest' ) as $field ) {
+				self::add_replacement( $replacements, $input[ "old_{$field}" ] ?? ( $old_social[ $field ] ?? null ), $input[ $field ] ?? ( $new_social[ $field ] ?? null ) );
+			}
+
+			return $replacements;
+		}
+
+		/**
+		 * Add one string replacement if it is valid.
+		 *
+		 * @param array<string,string> $replacements Replacement map.
+		 * @param mixed                $from         Old value.
+		 * @param mixed                $to           New value.
+		 */
+		private static function add_replacement( &$replacements, $from, $to ) {
+			$from = is_scalar( $from ) ? (string) $from : '';
+			$to   = is_scalar( $to ) ? (string) $to : '';
+			if ( '' === $from || $from === $to ) {
+				return;
+			}
+			$replacements[ $from ] = $to;
+		}
+
+		/**
+		 * Guess a target for old_values list entries when no explicit replacement is provided.
+		 *
+		 * @param string              $old_value Old value.
+		 * @param array<string,mixed> $input     Tool input.
+		 * @return string
+		 */
+		private static function replacement_target_for_old_value( $old_value, $input ) {
+			if ( filter_var( $old_value, FILTER_VALIDATE_URL ) && ! empty( $input['url'] ) ) {
+				return (string) $input['url'];
+			}
+			if ( ! empty( $input['brand_name'] ) ) {
+				return (string) $input['brand_name'];
+			}
+			return '';
+		}
+
+		/**
+		 * Recursively apply multiple string replacements to a value.
+		 *
+		 * @param mixed                $value        Input value.
+		 * @param array<string,string> $replacements Replacement map.
+		 * @return mixed
+		 */
+		private static function replace_many_in_value( $value, $replacements ) {
+			foreach ( $replacements as $from => $to ) {
+				$value = self::replace_in_value( $value, $from, $to );
+			}
+			return $value;
+		}
 
 		/**
 		 * Recursively replace all string occurrences of $from with $to in a value.

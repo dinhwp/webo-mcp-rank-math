@@ -9,6 +9,7 @@
  * Actions registered here:
  *  - apply-brand-profile     Apply a complete brand identity to Knowledge Graph, homepage, social, schema.
  *  - migrate-brand           Replace old brand name occurrences across all Rank Math option groups.
+ *  - brand-cleanup           Replace old brand URLs, logos, social profiles, and related identity values.
  *  - configure-homepage      Set homepage title and description.
  *  - configure-social        Set social profile URLs in the Social option group.
  *  - configure-schema-defaults  Set default schema type for post types.
@@ -48,6 +49,18 @@ function webo_rank_math_action_apply_brand_profile( $input ) {
 function webo_rank_math_action_migrate_brand( $input ) {
 	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $input ) {
 		return WeboMcpRankMath_MigrationService::migrate( $input );
+	} );
+}
+
+/**
+ * Handler: brand-cleanup
+ *
+ * @param array<string,mixed> $input
+ * @return array<string,mixed>|\WP_Error
+ */
+function webo_rank_math_action_brand_cleanup( $input ) {
+	return webo_rank_math_with_site( $input['site_id'] ?? 0, function () use ( $input ) {
+		return WeboMcpRankMath_MigrationService::cleanup( $input );
 	} );
 }
 
@@ -462,6 +475,7 @@ function webo_rank_math_semantic_action( $input ) {
 	return match ( $action ) {
 		'apply-brand-profile'        => webo_rank_math_action_apply_brand_profile( $input ),
 		'migrate-brand'              => webo_rank_math_action_migrate_brand( $input ),
+		'brand-cleanup'             => webo_rank_math_action_brand_cleanup( $input ),
 		'configure-homepage'         => webo_rank_math_action_configure_homepage( $input ),
 		'configure-social'           => webo_rank_math_action_configure_social( $input ),
 		'configure-schema-defaults'  => webo_rank_math_action_configure_schema_defaults( $input ),
@@ -471,7 +485,7 @@ function webo_rank_math_semantic_action( $input ) {
 		default                      => new WP_Error(
 			'webo_mcp_invalid_action',
 			sprintf(
-				'Unknown semantic action: %s. Available: apply-brand-profile, migrate-brand, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo.',
+				'Unknown semantic action: %s. Available: apply-brand-profile, migrate-brand, brand-cleanup, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo.',
 				$action
 			)
 		),
@@ -485,7 +499,7 @@ function webo_rank_math_semantic_action( $input ) {
 add_action( 'wp_abilities_api_init', function () {
 	wp_register_ability( 'webo-rank-math/semantic-action', array(
 		'label'       => 'Rank Math Semantic Action',
-		'description' => 'AI-first semantic actions for brand, homepage, social, schema, and sitemap configuration. action: apply-brand-profile, migrate-brand, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo.',
+		'description' => 'AI-first semantic actions for brand, homepage, social, schema, and sitemap configuration. action: apply-brand-profile, migrate-brand, brand-cleanup, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo.',
 		'category'    => 'webo-rank-math',
 		'input_schema' => array(
 			'type'                 => 'object',
@@ -498,6 +512,7 @@ add_action( 'wp_abilities_api_init', function () {
 					'enum'        => array(
 						'apply-brand-profile',
 						'migrate-brand',
+						'brand-cleanup',
 						'configure-homepage',
 						'configure-social',
 						'configure-schema-defaults',
@@ -524,9 +539,17 @@ add_action( 'wp_abilities_api_init', function () {
 				'youtube'              => array( 'type' => 'string', 'format' => 'uri' ),
 				'github'               => array( 'type' => 'string', 'format' => 'uri' ),
 				'pinterest'            => array( 'type' => 'string', 'format' => 'uri' ),
-				// migrate-brand inputs
+				// migrate-brand / brand-cleanup inputs
 				'from'                 => array( 'type' => 'string' ),
 				'to'                   => array( 'type' => 'string' ),
+				'old_brand'            => array( 'type' => 'string' ),
+				'old_url'              => array( 'type' => 'string', 'format' => 'uri' ),
+				'old_logo'             => array( 'type' => 'string', 'format' => 'uri' ),
+				'old_email_report_logo' => array( 'type' => 'string', 'format' => 'uri' ),
+				'old_social_profiles'  => array( 'type' => 'object', 'additionalProperties' => true ),
+				'replacements'         => array( 'type' => 'object', 'additionalProperties' => true ),
+				'old_values'           => array( 'type' => 'object', 'additionalProperties' => true ),
+				'brand_cleanup'        => array( 'type' => 'object', 'additionalProperties' => true ),
 				// configure-homepage
 				'title'                => array( 'type' => 'string' ),
 				// configure-schema-defaults

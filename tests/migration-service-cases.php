@@ -169,6 +169,74 @@ foreach ( $response['diff'] as $item ) {
 $assert( $found_general, 'Diff contains general.knowledgegraph_name change' );
 
 // ---------------------------------------------------------------------------
+// Dry run -- brand cleanup across multiple old values
+// ---------------------------------------------------------------------------
+echo PHP_EOL . '=== MigrationService -- Brand cleanup ===' . PHP_EOL;
+
+$GLOBALS['webo_test_options'] = array(
+	'rank-math-options-general' => array(
+		'knowledgegraph_name'   => 'Webo Company',
+		'knowledgegraph_url'    => 'https://webo.vn',
+		'knowledgegraph_logo'   => 'https://webo.vn/logo.png',
+		'social_url_facebook'   => 'https://facebook.com/webo',
+		'email_report_logo_url' => 'https://webo.vn/report-logo.png',
+	),
+	'rank-math-options-titles' => array(
+		'website_name'         => 'Webo',
+		'homepage_title'       => 'Webo - SEO services',
+		'homepage_description' => 'Visit https://webo.vn for Webo services.',
+	),
+	'rank-math-options-social' => array(
+		'facebook_link' => 'https://facebook.com/webo',
+		'social_urls'   => array( 'https://facebook.com/webo', 'https://www.linkedin.com/company/webo' ),
+	),
+	'rank-math-options-sitemap'          => array(),
+	'rank-math-options-instant-indexing' => array(),
+);
+
+$response = WeboMcpRankMath_MigrationService::cleanup( array(
+	'old_brand'             => 'Webo',
+	'brand_name'            => 'DinhWP',
+	'old_url'               => 'https://webo.vn',
+	'url'                   => 'https://dinhwp.com',
+	'old_logo'              => 'https://webo.vn/logo.png',
+	'logo'                  => 'https://dinhwp.com/logo.png',
+	'old_email_report_logo' => 'https://webo.vn/report-logo.png',
+	'email_report_logo'     => 'https://dinhwp.com/report-logo.png',
+	'old_social_profiles'   => array(
+		'facebook' => 'https://facebook.com/webo',
+		'linkedin' => 'https://www.linkedin.com/company/webo',
+	),
+	'social'                => array(
+		'facebook' => 'https://facebook.com/dinhwp',
+		'linkedin' => 'https://www.linkedin.com/company/dinhwp',
+	),
+	'dry_run'               => true,
+) );
+
+$assert( ! is_wp_error( $response ), 'Brand cleanup dry run is not WP_Error' );
+$assert( true === ( $response['dry_run'] ?? null ), 'Brand cleanup dry_run=true' );
+$assert( true === ( $response['would_change'] ?? null ), 'Brand cleanup would_change=true' );
+$assert( ( $response['planned_count'] ?? 0 ) >= 5, 'Brand cleanup planned_count >= 5' );
+$assert( 'brand-cleanup' === ( $response['action'] ?? '' ), 'Brand cleanup context action' );
+$assert( ( $response['replacement_count'] ?? 0 ) >= 5, 'Brand cleanup replacement_count >= 5' );
+
+$found_logo   = false;
+$found_social = false;
+foreach ( $response['diff'] as $item ) {
+	if ( 'general' === $item['option_group'] && 'knowledgegraph_logo' === $item['key'] ) {
+		$found_logo = true;
+		$assert( 'https://dinhwp.com/logo.png' === $item['after'], 'Brand cleanup replaces logo URL' );
+	}
+	if ( 'social' === $item['option_group'] && 'social_urls' === $item['key'] ) {
+		$found_social = true;
+		$assert( in_array( 'https://facebook.com/dinhwp', $item['after'], true ), 'Brand cleanup replaces nested social URL' );
+	}
+}
+$assert( $found_logo, 'Brand cleanup diff contains logo change' );
+$assert( $found_social, 'Brand cleanup diff contains nested social change' );
+
+// ---------------------------------------------------------------------------
 // Summary
 // ---------------------------------------------------------------------------
 echo PHP_EOL . ( 0 === $failures ? 'All migration-service cases passed.' : $failures . ' case(s) FAILED.' ) . PHP_EOL;
