@@ -1259,7 +1259,7 @@ function webo_mcp_rank_math_tool_scope_risk( $tool_name ) {
 
 function webo_mcp_rank_math_apply_profile_tool_arguments() {
 	return array(
-		'profile'              => array( 'type' => 'string', 'required' => true, 'description' => 'Profile preset, e.g. dinhwp-personal-brand, personal, organization, company.' ),
+		'profile'              => array( 'type' => 'string', 'required' => true, 'description' => 'Profile preset, e.g. personal-brand, local-business, organization, company, blog, news-site, ecommerce, agency.' ),
 		'brand_name'           => array( 'type' => 'string', 'required' => false ),
 		'person_name'          => array( 'type' => 'string', 'required' => false ),
 		'url'                  => array( 'type' => 'string', 'required' => false ),
@@ -1306,25 +1306,24 @@ function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
 function webo_mcp_rank_math_normalize_profile_preset( array $arguments ) {
 	$preset = sanitize_key( (string) ( $arguments['profile'] ?? '' ) );
 
-	if ( 'dinhwp-personal-brand' === $preset ) {
-		$defaults = array(
-			'profile'              => 'personal',
-			'brand_name'           => 'DinhWP',
-			'person_name'          => 'Dương Phú Phương',
-			'url'                  => 'https://dinhwp.com',
-			'description'          => 'DinhWP chia sẻ kiến thức WordPress, SEO, MCP và tự động hóa website.',
-			'homepage_title'       => 'DinhWP - WordPress, SEO và MCP',
-			'homepage_description' => 'DinhWP chia sẻ hướng dẫn WordPress, Rank Math SEO, MCP và tự động hóa website thực chiến.',
-		);
-		$merged = array_merge( $defaults, array_filter( $arguments, static function ( $value ) {
-			return null !== $value && '' !== $value;
-		} ) );
-		$merged['profile'] = 'personal';
-		return $merged;
+	$profile_map = array(
+		'personal-brand' => 'personal',
+		'personal'       => 'personal',
+		'local-business' => 'organization',
+		'organization'   => 'organization',
+		'company'        => 'company',
+		'blog'           => 'organization',
+		'news-site'      => 'organization',
+		'ecommerce'      => 'organization',
+		'agency'         => 'organization',
+	);
+
+	if ( isset( $profile_map[ $preset ] ) ) {
+		$arguments['profile'] = $profile_map[ $preset ];
 	}
 
-	if ( in_array( $preset, array( 'personal', 'organization', 'company' ), true ) ) {
-		$arguments['profile'] = $preset;
+	if ( 'personal' === ( $arguments['profile'] ?? '' ) && empty( $arguments['person_name'] ) && ! empty( $arguments['brand_name'] ) ) {
+		$arguments['person_name'] = $arguments['brand_name'];
 	}
 
 	return $arguments;
@@ -1408,7 +1407,7 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 			},
 		),
 		'rank_math_apply_profile' => array(
-			'description' => 'Apply a Rank Math SEO profile preset in one call. Use profile=dinhwp-personal-brand for DinhWP personal brand. Applies baseline modules/options, Knowledge Graph, homepage, social, breadcrumbs, sitemap cache flush, and validation. Defaults to dry_run=true.',
+			'description' => 'Apply a reusable Rank Math SEO profile preset in one call. Supported profiles: personal-brand, local-business, organization, company, blog, news-site, ecommerce, agency. Caller supplies brand/person/site data. Defaults to dry_run=true.',
 			'arguments'   => webo_mcp_rank_math_apply_profile_tool_arguments(),
 			'callback'    => static function ( array $arguments ) {
 				return webo_mcp_rank_math_apply_profile_tool( $arguments );
