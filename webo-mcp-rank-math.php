@@ -1316,9 +1316,11 @@ function webo_mcp_rank_math_normalize_profile_preset( array $arguments ) {
 			'homepage_title'       => 'DinhWP - WordPress, SEO và MCP',
 			'homepage_description' => 'DinhWP chia sẻ hướng dẫn WordPress, Rank Math SEO, MCP và tự động hóa website thực chiến.',
 		);
-		return array_merge( $defaults, array_filter( $arguments, static function ( $value ) {
+		$merged = array_merge( $defaults, array_filter( $arguments, static function ( $value ) {
 			return null !== $value && '' !== $value;
 		} ) );
+		$merged['profile'] = 'personal';
+		return $merged;
 	}
 
 	if ( in_array( $preset, array( 'personal', 'organization', 'company' ), true ) ) {
