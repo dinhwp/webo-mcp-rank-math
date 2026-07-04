@@ -51,6 +51,9 @@ if ( ! function_exists( 'sanitize_textarea_field' ) ) {
 if ( ! function_exists( 'sanitize_key' ) ) {
 	function sanitize_key( $v ) { return strtolower( preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $v ) ) ); } // phpcs:ignore
 }
+if ( ! function_exists( 'sanitize_email' ) ) {
+	function sanitize_email( $v ) { return filter_var( trim( (string) $v ), FILTER_SANITIZE_EMAIL ); } // phpcs:ignore
+}
 if ( ! function_exists( 'esc_url_raw' ) ) {
 	function esc_url_raw( $v ) { return filter_var( trim( $v ), FILTER_SANITIZE_URL ) ?: ''; } // phpcs:ignore
 }
@@ -119,6 +122,21 @@ $valid_input = array(
 	'brand_name' => 'DinhWP',
 	'alternate_name' => 'DinhWP.com',
 	'url'        => 'https://dinhwp.com',
+	'logo'       => 'https://dinhwp.com//uploads/logo.png',
+	'open_graph_image' => 'https://dinhwp.com//uploads/og.png',
+	'publisher'  => array(
+		'name' => 'DinhWP Publisher',
+		'logo' => 'https://dinhwp.com//uploads/publisher.png',
+	),
+	'contact'    => array(
+		'email' => 'hello@dinhwp.com',
+		'phone' => '+84900000000',
+	),
+	'same_as'    => array(
+		'https://www.youtube.com/@dinhwp',
+		'https://www.linkedin.com/company/dinhwp',
+	),
+	'nofollow_external_links' => false,
 	'social'     => array(
 		'facebook' => 'https://facebook.com/dinhwp',
 		'github'   => 'https://github.com/dinhwp',
@@ -179,10 +197,19 @@ $assert( isset( $patch['titles'] ), 'Patch has titles group' );
 $assert( $patch['general']['knowledgegraph_name'] === 'DinhWP', 'KG name is set correctly' );
 $assert( $patch['general']['knowledgegraph_type'] === 'person', 'KG type is person for personal profile' );
 $assert( $patch['general']['knowledgegraph_url'] === 'https://dinhwp.com', 'KG url is set correctly' );
+$assert( $patch['general']['knowledgegraph_logo'] === 'https://dinhwp.com/uploads/logo.png', 'KG logo URL is normalized' );
+$assert( $patch['general']['publisher_name'] === 'DinhWP Publisher', 'Publisher name is mapped' );
+$assert( $patch['general']['publisher_logo'] === 'https://dinhwp.com/uploads/publisher.png', 'Publisher logo URL is normalized' );
+$assert( $patch['general']['email'] === 'hello@dinhwp.com', 'Contact email is mapped' );
+$assert( in_array( 'https://www.youtube.com/@dinhwp', $patch['general']['social_networks'], true ), 'Explicit same_as is included in social_networks' );
 $assert( $patch['titles']['website_name'] === 'DinhWP', 'Website name set' );
 $assert( $patch['titles']['website_alternate_name'] === 'DinhWP.com', 'Website alternate name set' );
 $assert( $patch['titles']['breadcrumbs_home_label'] === 'DinhWP', 'Breadcrumb home label set' );
 $assert( $patch['titles']['twitter_card_type'] === 'summary_large_image', 'Twitter card type set' );
+$assert( $patch['titles']['nofollow_external_links'] === 'off', 'External nofollow can be disabled' );
+$assert( $patch['social']['open_graph_image'] === 'https://dinhwp.com/uploads/og.png', 'Open Graph image is normalized and mapped' );
+$assert( $patch['social']['twitter_image'] === 'https://dinhwp.com/uploads/og.png', 'Twitter image follows Open Graph image' );
+$assert( in_array( 'https://github.com/dinhwp', $patch['social']['social_urls'], true ), 'GitHub is included in sameAs/social_urls' );
 $assert( $patch['general']['local_business_type'] === 'ProfessionalService', 'Local SEO business type set' );
 $assert( $patch['general']['phone_numbers'][0] === '+84900000000', 'Local SEO phone number set' );
 $assert( $patch['titles']['pt_post_autogenerate_image'] === 'on', 'Image SEO can enable post image generation' );

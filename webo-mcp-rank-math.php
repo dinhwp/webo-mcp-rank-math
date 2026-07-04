@@ -1269,8 +1269,18 @@ function webo_mcp_rank_math_apply_profile_tool_arguments() {
 		'homepage_title'       => array( 'type' => 'string', 'required' => false ),
 		'homepage_description' => array( 'type' => 'string', 'required' => false ),
 		'logo'                 => array( 'type' => 'string', 'required' => false ),
+		'open_graph_image'     => array( 'type' => 'string', 'required' => false, 'description' => 'Default Open Graph/Twitter image URL.' ),
+		'publisher_name'       => array( 'type' => 'string', 'required' => false ),
+		'publisher_logo'       => array( 'type' => 'string', 'required' => false ),
+		'email'                => array( 'type' => 'string', 'required' => false ),
+		'contact_email'        => array( 'type' => 'string', 'required' => false ),
+		'contact'              => array( 'type' => 'object', 'required' => false, 'description' => 'Contact fields such as email, phone, address, contact_type.' ),
+		'organization'         => array( 'type' => 'object', 'required' => false, 'description' => 'Organization schema payload; flattened into brand identity fields.' ),
+		'person'               => array( 'type' => 'object', 'required' => false, 'description' => 'Person schema payload; flattened into brand identity fields.' ),
+		'publisher'            => array( 'type' => 'object', 'required' => false, 'description' => 'Publisher payload; flattened into publisher_name/publisher_logo.' ),
 		'brand_identity'       => array( 'type' => 'object', 'required' => false, 'description' => 'Optional nested brand identity object. Values are normalized into this profile payload.' ),
 		'social'               => array( 'type' => 'object', 'required' => false, 'description' => 'Optional social profile URLs keyed by facebook, twitter, instagram, linkedin, youtube, github, pinterest.' ),
+		'same_as'              => array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ), 'description' => 'Explicit sameAs URLs to merge with social profile URLs.' ),
 		'local'                => array( 'type' => 'object', 'required' => false, 'description' => 'Optional Local SEO data: business_type, address, phone, phone_numbers, opening_hours, about_page, contact_page.' ),
 		'sitemap'              => array( 'type' => 'object', 'required' => false, 'description' => 'Optional Rank Math sitemap option patch.' ),
 		'instant_indexing'     => array( 'type' => 'object', 'required' => false, 'description' => 'Optional Rank Math Instant Indexing option patch, e.g. bing_post_types.' ),
@@ -1278,6 +1288,8 @@ function webo_mcp_rank_math_apply_profile_tool_arguments() {
 		'robots_global'        => array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) ),
 		'post_title_template'  => array( 'type' => 'string', 'required' => false ),
 		'page_title_template'  => array( 'type' => 'string', 'required' => false ),
+		'nofollow_external_links' => array( 'type' => 'boolean', 'required' => false, 'description' => 'Set off to disable nofollow on external links.' ),
+		'nofollow_image_links' => array( 'type' => 'boolean', 'required' => false ),
 		'facebook'             => array( 'type' => 'string', 'required' => false ),
 		'twitter'              => array( 'type' => 'string', 'required' => false ),
 		'instagram'            => array( 'type' => 'string', 'required' => false ),
@@ -1318,6 +1330,13 @@ function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
 		$args['brand_name'] = array( 'type' => 'string', 'required' => false );
 		$args['url'] = array( 'type' => 'string', 'required' => false );
 		$args['logo'] = array( 'type' => 'string', 'required' => false );
+		$args['open_graph_image'] = array( 'type' => 'string', 'required' => false );
+		$args['publisher_name'] = array( 'type' => 'string', 'required' => false );
+		$args['publisher_logo'] = array( 'type' => 'string', 'required' => false );
+		$args['email'] = array( 'type' => 'string', 'required' => false );
+		$args['contact'] = array( 'type' => 'object', 'required' => false );
+		$args['same_as'] = array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) );
+		$args['nofollow_external_links'] = array( 'type' => 'boolean', 'required' => false );
 		$args['email_report_logo'] = array( 'type' => 'string', 'required' => false );
 		$args['social'] = array( 'type' => 'object', 'required' => false, 'description' => 'New social profile URLs keyed by platform.' );
 		$args['old_brand'] = array( 'type' => 'string', 'required' => false );
@@ -1568,6 +1587,16 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 				'url'                  => array( 'type' => 'string', 'required' => false ),
 				'description'          => array( 'type' => 'string', 'required' => false ),
 				'logo'                 => array( 'type' => 'string', 'required' => false ),
+				'open_graph_image'     => array( 'type' => 'string', 'required' => false ),
+				'publisher_name'       => array( 'type' => 'string', 'required' => false ),
+				'publisher_logo'       => array( 'type' => 'string', 'required' => false ),
+				'email'                => array( 'type' => 'string', 'required' => false ),
+				'contact_email'        => array( 'type' => 'string', 'required' => false ),
+				'contact'              => array( 'type' => 'object', 'required' => false ),
+				'organization'         => array( 'type' => 'object', 'required' => false ),
+				'person'               => array( 'type' => 'object', 'required' => false ),
+				'publisher'            => array( 'type' => 'object', 'required' => false ),
+				'same_as'              => array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) ),
 				'homepage_title'       => array( 'type' => 'string', 'required' => false ),
 				'homepage_description' => array( 'type' => 'string', 'required' => false ),
 				'facebook'             => array( 'type' => 'string', 'required' => false ),
@@ -1577,6 +1606,8 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 				'youtube'              => array( 'type' => 'string', 'required' => false ),
 				'github'               => array( 'type' => 'string', 'required' => false ),
 				'pinterest'            => array( 'type' => 'string', 'required' => false ),
+				'nofollow_external_links' => array( 'type' => 'boolean', 'required' => false ),
+				'nofollow_image_links' => array( 'type' => 'boolean', 'required' => false ),
 				'old_brand'            => array( 'type' => 'string', 'required' => false ),
 				'old_url'              => array( 'type' => 'string', 'required' => false ),
 				'old_logo'             => array( 'type' => 'string', 'required' => false ),

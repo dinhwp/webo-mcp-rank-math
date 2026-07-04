@@ -65,6 +65,27 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileValidator' ) ) {
 					$errors->add( "invalid_{$field}", "{$field} must be a valid URL." );
 				}
 			}
+			foreach ( array( 'logo', 'open_graph_image', 'publisher_logo' ) as $field ) {
+				$val = trim( (string) ( $input[ $field ] ?? '' ) );
+				if ( '' !== $val && false === filter_var( $val, FILTER_VALIDATE_URL ) ) {
+					$errors->add( "invalid_{$field}", "{$field} must be a valid URL." );
+				}
+			}
+			$same_as = $input['same_as'] ?? ( $input['sameAs'] ?? array() );
+			if ( is_array( $same_as ) ) {
+				foreach ( $same_as as $index => $same_as_url ) {
+					$same_as_url = trim( (string) $same_as_url );
+					if ( '' !== $same_as_url && false === filter_var( $same_as_url, FILTER_VALIDATE_URL ) ) {
+						$errors->add( 'invalid_same_as', sprintf( 'same_as[%d] must be a valid URL.', $index ) );
+					}
+				}
+			}
+			foreach ( array( 'email', 'contact_email' ) as $field ) {
+				$val = trim( (string) ( $input[ $field ] ?? '' ) );
+				if ( '' !== $val && false === filter_var( $val, FILTER_VALIDATE_EMAIL ) ) {
+					$errors->add( "invalid_{$field}", "{$field} must be a valid email address." );
+				}
+			}
 
 			if ( $errors->has_errors() ) {
 				return $errors;

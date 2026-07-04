@@ -32,6 +32,8 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileService' ) ) {
 		 * @return array<string,mixed>|\WP_Error
 		 */
 		public static function apply( $input ) {
+			$input = WeboMcpRankMath_BrandProfileMapper::normalize_input( $input );
+
 			// 1. Validate.
 			$valid = WeboMcpRankMath_BrandProfileValidator::validate_brand_profile( $input );
 			if ( is_wp_error( $valid ) ) {
@@ -42,7 +44,6 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileService' ) ) {
 				);
 			}
 
-			$input   = WeboMcpRankMath_BrandProfileMapper::normalize_input( $input );
 			$dry_run = isset( $input['dry_run'] ) ? webo_mcp_is_truthy( $input['dry_run'] ) : true;
 
 			// 2. Build patch (Mapper).

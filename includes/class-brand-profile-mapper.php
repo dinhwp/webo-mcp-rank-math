@@ -40,26 +40,30 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 			$brand_name    = sanitize_text_field( trim( (string) ( $input['brand_name'] ?? '' ) ) );
 			$person_name   = sanitize_text_field( trim( (string) ( $input['person_name'] ?? '' ) ) );
 			$alternate     = sanitize_text_field( trim( (string) ( $input['alternate_name'] ?? '' ) ) );
-			$url           = esc_url_raw( trim( (string) ( $input['url'] ?? '' ) ) );
+			$url           = self::normalize_url( $input['url'] ?? '' );
 			$description   = sanitize_textarea_field( trim( (string) ( $input['description'] ?? '' ) ) );
 			$profile       = sanitize_key( (string) ( $input['profile'] ?? 'organization' ) );
-			$logo          = esc_url_raw( trim( (string) ( $input['logo'] ?? '' ) ) );
+			$logo          = self::normalize_url( $input['logo'] ?? '' );
+			$og_image      = self::normalize_url( $input['open_graph_image'] ?? ( $input['default_og_image'] ?? '' ) );
+			$email         = sanitize_email( (string) ( $input['email'] ?? ( $input['contact_email'] ?? '' ) ) );
+			$publisher     = sanitize_text_field( trim( (string) ( $input['publisher_name'] ?? ( $input['publisher'] ?? $brand_name ) ) ) );
+			$publisher_logo = self::normalize_url( $input['publisher_logo'] ?? ( $input['publisher_image'] ?? $logo ) );
 
 			// Rank Math Knowledge Graph entity type.
 			$kg_type = ( 'personal' === $profile ) ? 'person' : 'organization';
 			$kg_name = ( 'personal' === $profile && '' !== $person_name ) ? $person_name : $brand_name;
 
 			// Social URLs.
-			$facebook  = esc_url_raw( trim( (string) ( $input['facebook'] ?? '' ) ) );
-			$twitter   = esc_url_raw( trim( (string) ( $input['twitter'] ?? '' ) ) );
-			$instagram = esc_url_raw( trim( (string) ( $input['instagram'] ?? '' ) ) );
-			$linkedin  = esc_url_raw( trim( (string) ( $input['linkedin'] ?? '' ) ) );
-			$youtube   = esc_url_raw( trim( (string) ( $input['youtube'] ?? '' ) ) );
-			$github    = esc_url_raw( trim( (string) ( $input['github'] ?? '' ) ) );
-			$pinterest = esc_url_raw( trim( (string) ( $input['pinterest'] ?? '' ) ) );
+			$facebook  = self::normalize_url( $input['facebook'] ?? '' );
+			$twitter   = self::normalize_url( $input['twitter'] ?? '' );
+			$instagram = self::normalize_url( $input['instagram'] ?? '' );
+			$linkedin  = self::normalize_url( $input['linkedin'] ?? '' );
+			$youtube   = self::normalize_url( $input['youtube'] ?? '' );
+			$github    = self::normalize_url( $input['github'] ?? '' );
+			$pinterest = self::normalize_url( $input['pinterest'] ?? '' );
 
-			// Build sameAs array from all non-empty social links.
-			$same_as = array_values( array_filter( array(
+			// Build sameAs array from all non-empty social links and explicit same_as entries.
+			$same_as = self::normalize_url_list( array(
 				$facebook,
 				$twitter,
 				$instagram,
@@ -67,7 +71,10 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 				$youtube,
 				$github,
 				$pinterest,
-			) ) );
+			) );
+			if ( isset( $input['same_as'] ) ) {
+				$same_as = array_values( array_unique( array_merge( $same_as, self::normalize_url_list( $input['same_as'] ) ) ) );
+			}
 
 			// Homepage title defaults to brand_name.
 			$homepage_title = ! empty( $input['homepage_title'] )
@@ -89,6 +96,16 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 			if ( '' !== $logo ) {
 				$general_patch['knowledgegraph_logo'] = $logo;
 			}
+			if ( '' !== $email ) {
+				$general_patch['email'] = $email;
+				$general_patch['local_seo_email'] = $email;
+			}
+			if ( '' !== $publisher ) {
+				$general_patch['publisher_name'] = $publisher;
+			}
+			if ( '' !== $publisher_logo ) {
+				$general_patch['publisher_logo'] = $publisher_logo;
+			}
 
 			if ( ! empty( $same_as ) ) {
 				$general_patch['social_url_facebook']  = $facebook;
@@ -97,6 +114,7 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 				$general_patch['social_url_linkedin']  = $linkedin;
 				$general_patch['social_url_youtube']   = $youtube;
 				$general_patch['social_url_pinterest'] = $pinterest;
+				$general_patch['social_url_github']    = $github;
 				$general_patch['social_additional_profiles'] = implode( "\n", $same_as );
 			}
 
@@ -110,6 +128,12 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 				$general_patch['phone_numbers'] = self::sanitize_list_or_text( $input['phone_numbers'] );
 			} elseif ( ! empty( $input['phone'] ) ) {
 				$general_patch['phone_numbers'] = array( sanitize_text_field( (string) $input['phone'] ) );
+			}
+			if ( ! empty( $input['contact'] ) && is_array( $input['contact'] ) ) {
+				$contact = self::sanitize_assoc_patch( $input['contact'] );
+				foreach ( $contact as $key => $value ) {
+					$general_patch[ 'contact_' . sanitize_key( $key ) ] = $value;
+				}
 			}
 			if ( ! empty( $input['opening_hours'] ) ) {
 				$general_patch['opening_hours'] = self::sanitize_list_or_text( $input['opening_hours'] );
@@ -164,6 +188,12 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 			if ( isset( $input['image_seo'] ) && is_array( $input['image_seo'] ) ) {
 				$titles_patch = array_merge( $titles_patch, self::map_image_seo( $input['image_seo'] ) );
 			}
+			if ( isset( $input['nofollow_external_links'] ) ) {
+				$titles_patch['nofollow_external_links'] = self::truthy_to_on_off( $input['nofollow_external_links'] );
+			}
+			if ( isset( $input['nofollow_image_links'] ) ) {
+				$titles_patch['nofollow_image_links'] = self::truthy_to_on_off( $input['nofollow_image_links'] );
+			}
 
 			// Social patch — OpenGraph & Twitter author.
 			$social_patch = array();
@@ -182,6 +212,10 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 
 			if ( ! empty( $same_as ) ) {
 				$social_patch['social_urls'] = $same_as;
+			}
+			if ( '' !== $og_image ) {
+				$social_patch['open_graph_image'] = $og_image;
+				$social_patch['twitter_image']    = $og_image;
 			}
 
 			// Entity sameAs — stored in general group.
@@ -235,6 +269,56 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 					}
 				}
 			}
+			if ( isset( $input['sameAs'] ) && ! isset( $input['same_as'] ) ) {
+				$input['same_as'] = $input['sameAs'];
+			}
+			foreach ( array( 'organization', 'person', 'publisher', 'contact' ) as $container ) {
+				if ( isset( $input[ $container ] ) && is_array( $input[ $container ] ) ) {
+					foreach ( $input[ $container ] as $key => $value ) {
+						if ( ! array_key_exists( $key, $input ) ) {
+							$input[ $key ] = $value;
+						}
+					}
+				}
+			}
+			if ( isset( $input['organization'] ) && is_array( $input['organization'] ) ) {
+				if ( ! isset( $input['brand_name'] ) && isset( $input['organization']['name'] ) ) {
+					$input['brand_name'] = $input['organization']['name'];
+				}
+				if ( ! isset( $input['url'] ) && isset( $input['organization']['url'] ) ) {
+					$input['url'] = $input['organization']['url'];
+				}
+				if ( ! isset( $input['logo'] ) && isset( $input['organization']['logo'] ) ) {
+					$input['logo'] = $input['organization']['logo'];
+				}
+				if ( ! isset( $input['same_as'] ) && isset( $input['organization']['same_as'] ) ) {
+					$input['same_as'] = $input['organization']['same_as'];
+				}
+			}
+			if ( isset( $input['person'] ) && is_array( $input['person'] ) && ! isset( $input['person_name'] ) && isset( $input['person']['name'] ) ) {
+				$input['person_name'] = $input['person']['name'];
+			}
+			if ( isset( $input['publisher'] ) && is_array( $input['publisher'] ) ) {
+				if ( ! isset( $input['publisher_name'] ) && isset( $input['publisher']['name'] ) ) {
+					$input['publisher_name'] = $input['publisher']['name'];
+				}
+				if ( ! isset( $input['publisher_logo'] ) ) {
+					if ( isset( $input['publisher']['logo'] ) ) {
+						$input['publisher_logo'] = $input['publisher']['logo'];
+					} elseif ( isset( $input['publisher']['image'] ) ) {
+						$input['publisher_logo'] = $input['publisher']['image'];
+					}
+				}
+			}
+			if ( isset( $input['contact'] ) && is_array( $input['contact'] ) && ! isset( $input['contact_email'] ) && isset( $input['contact']['email'] ) ) {
+				$input['contact_email'] = $input['contact']['email'];
+			}
+			if ( ! isset( $input['brand_name'] ) && isset( $input['name'] ) ) {
+				$input['brand_name'] = $input['name'];
+			}
+			if ( ! isset( $input['logo'] ) && isset( $input['image'] ) ) {
+				$input['logo'] = $input['image'];
+			}
 
 			if ( isset( $input['local'] ) && is_array( $input['local'] ) ) {
 				$local_map = array(
@@ -275,6 +359,27 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileMapper' ) ) {
 				$patch['default_image_overlay'] = sanitize_text_field( (string) $image_seo['default_image_overlay'] );
 			}
 			return $patch;
+		}
+
+		private static function normalize_url( $value ) {
+			$value = trim( (string) $value );
+			if ( '' === $value ) {
+				return '';
+			}
+			$value = preg_replace( '#(?<!:)/{2,}#', '/', $value );
+			return esc_url_raw( $value );
+		}
+
+		private static function normalize_url_list( $value ) {
+			$values = is_array( $value ) ? $value : array( $value );
+			$urls   = array();
+			foreach ( $values as $item ) {
+				$url = self::normalize_url( $item );
+				if ( '' !== $url ) {
+					$urls[] = $url;
+				}
+			}
+			return array_values( array_unique( $urls ) );
 		}
 
 		private static function sanitize_assoc_patch( $patch ) {
