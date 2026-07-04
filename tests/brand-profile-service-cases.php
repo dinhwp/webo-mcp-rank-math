@@ -117,9 +117,23 @@ echo PHP_EOL . '=== BrandProfileValidator ===' . PHP_EOL;
 $valid_input = array(
 	'profile'    => 'personal',
 	'brand_name' => 'DinhWP',
+	'alternate_name' => 'DinhWP.com',
 	'url'        => 'https://dinhwp.com',
-	'facebook'   => 'https://facebook.com/dinhwp',
-	'github'     => 'https://github.com/dinhwp',
+	'social'     => array(
+		'facebook' => 'https://facebook.com/dinhwp',
+		'github'   => 'https://github.com/dinhwp',
+	),
+	'local'      => array(
+		'business_type' => 'ProfessionalService',
+		'address'       => array( 'streetAddress' => '123 Test St' ),
+		'phone'         => '+84900000000',
+	),
+	'image_seo'  => array(
+		'post_types' => array( 'post' => true, 'page' => false ),
+	),
+	'instant_indexing' => array(
+		'bing_post_types' => array( 'post', 'page' ),
+	),
 );
 
 $result = WeboMcpRankMath_BrandProfileValidator::validate_brand_profile( $valid_input );
@@ -166,8 +180,14 @@ $assert( $patch['general']['knowledgegraph_name'] === 'DinhWP', 'KG name is set 
 $assert( $patch['general']['knowledgegraph_type'] === 'person', 'KG type is person for personal profile' );
 $assert( $patch['general']['knowledgegraph_url'] === 'https://dinhwp.com', 'KG url is set correctly' );
 $assert( $patch['titles']['website_name'] === 'DinhWP', 'Website name set' );
+$assert( $patch['titles']['website_alternate_name'] === 'DinhWP.com', 'Website alternate name set' );
 $assert( $patch['titles']['breadcrumbs_home_label'] === 'DinhWP', 'Breadcrumb home label set' );
 $assert( $patch['titles']['twitter_card_type'] === 'summary_large_image', 'Twitter card type set' );
+$assert( $patch['general']['local_business_type'] === 'ProfessionalService', 'Local SEO business type set' );
+$assert( $patch['general']['phone_numbers'][0] === '+84900000000', 'Local SEO phone number set' );
+$assert( $patch['titles']['pt_post_autogenerate_image'] === 'on', 'Image SEO can enable post image generation' );
+$assert( $patch['titles']['pt_page_autogenerate_image'] === 'off', 'Image SEO can disable page image generation' );
+$assert( $patch['instant-indexing']['bing_post_types'][0] === 'post', 'Instant indexing settings are mapped' );
 
 $org_patch = WeboMcpRankMath_BrandProfileMapper::map( array_merge( $valid_input, array( 'profile' => 'organization' ) ) );
 $assert( $org_patch['general']['knowledgegraph_type'] === 'organization', 'KG type is organization' );

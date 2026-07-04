@@ -42,17 +42,18 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileService' ) ) {
 				);
 			}
 
+			$input   = WeboMcpRankMath_BrandProfileMapper::normalize_input( $input );
 			$dry_run = isset( $input['dry_run'] ) ? webo_mcp_is_truthy( $input['dry_run'] ) : true;
 
-			// 2. Read current state.
-			$groups_needed = array( 'general', 'titles', 'social' );
+			// 2. Build patch (Mapper).
+			$patch = WeboMcpRankMath_BrandProfileMapper::map( $input );
+
+			// 3. Read current state for only the option groups this profile will touch.
+			$groups_needed = array_keys( $patch );
 			$current       = array();
 			foreach ( $groups_needed as $group ) {
 				$current[ $group ] = WeboMcpRankMath_OptionsRepository::get_group( $group );
 			}
-
-			// 3. Build patch (Mapper).
-			$patch = WeboMcpRankMath_BrandProfileMapper::map( $input );
 
 			// 4. Build diff.
 			$diff           = WeboMcpRankMath_BrandProfileMapper::build_diff( $patch, $current );
