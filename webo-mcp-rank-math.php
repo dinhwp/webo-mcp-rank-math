@@ -1315,6 +1315,11 @@ function webo_mcp_rank_math_config_tool_arguments( $mutation = false ) {
 		$args['options'] = array( 'type' => 'object', 'required' => false );
 		$args['modules'] = array( 'type' => 'array', 'required' => false, 'items' => array( 'type' => 'string' ) );
 		$args['cleanup_old_brand'] = array( 'type' => 'boolean', 'required' => false, 'description' => 'When true, run brand-cleanup after applying profile-compatible fields.' );
+		$args['brand_name'] = array( 'type' => 'string', 'required' => false );
+		$args['url'] = array( 'type' => 'string', 'required' => false );
+		$args['logo'] = array( 'type' => 'string', 'required' => false );
+		$args['email_report_logo'] = array( 'type' => 'string', 'required' => false );
+		$args['social'] = array( 'type' => 'object', 'required' => false, 'description' => 'New social profile URLs keyed by platform.' );
 		$args['old_brand'] = array( 'type' => 'string', 'required' => false );
 		$args['old_url'] = array( 'type' => 'string', 'required' => false );
 		$args['old_logo'] = array( 'type' => 'string', 'required' => false );
