@@ -1,8 +1,8 @@
 # WEBO MCP - Rank Math Addon
 
-Rank Math SEO addon for WEBO MCP (v1.1.0). Exposes `webo-rank-math/*` abilities through the WordPress Abilities API bridge so AI clients (ChatGPT, Claude, Codex, Cursor, etc.) can manage Rank Math SEO settings without wp-admin or WP-CLI.
+Rank Math SEO addon for WEBO MCP (v2.0.0). Exposes `webo-rank-math/*` abilities through the WordPress Abilities API bridge so AI clients (ChatGPT, Claude, Codex, Cursor, etc.) can manage Rank Math SEO settings without wp-admin or WP-CLI.
 
-**v1.1.0** introduces an AI-first semantic layer with layered architecture (Repository / Service / Validator / Mapper / Snapshot) on top of all existing tools — no backward-incompatible changes.
+**v2.0.0** adds a safe action-level API on top of the existing semantic layer, with dry-run-first responses, option allowlists, and automatic backups before forced mutations. No backward-incompatible changes.
 
 ## v2 action-level API
 
@@ -17,7 +17,7 @@ Supported v2 actions: `optimize-settings`, `complete-brand-profile`, `fix-common
   "dryRun": false,
   "force": true
 }
-```${nl}
+```
 Every write returns a diff and `backup_id`/`snapshot_id`; dry-run responses never write options.
 
 ## Website
@@ -59,7 +59,7 @@ Every write returns a diff and `backup_id`/`snapshot_id`; dry-run responses neve
 | `webo-rank-math/schema-mutate` | `upsert`, `delete`, `cleanup` — defaults `dry_run:true` |
 | `seo_quick_update` | Title / description / focus_keyword only (safe AI write) |
 
-### New tools added in v1.1.0
+### Semantic tools added in v1.1.0
 
 | Tool | Actions |
 |------|---------|

@@ -5,7 +5,7 @@ Tags: mcp, seo, rank-math, ai, automation
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 1.0.17
+Stable tag: 2.0.0
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -89,6 +89,11 @@ The maintained skill files live in the main WEBO MCP repository, not in this add
 
 == Changelog ==
 
+= 2.0.0 =
+* Add v2 action-level Rank Math MCP API for optimize-settings, complete-brand-profile, fix-common-issues, flush-rankmath-cache, ai-optimize-low-ctr-posts, generate-faq-schema, rebuild-internal-links, and sync-gsc.
+* Keep v2 writes safe by default with dry-run responses, option group allowlists, and automatic backups before forced mutations.
+* Detect namespaced WEBO MCP GSC addon classes for GSC-backed actions while preserving legacy fallbacks.
+
 = 1.0.17 =
 * Keep public Rank Math dispatcher tools visible in MCP `tools/list`, including global config query/mutate, while still hiding granular/internal aliases.
 
@@ -123,6 +128,9 @@ The maintained skill files live in the main WEBO MCP repository, not in this add
 * Initial public addon release for Rank Math SEO abilities.
 
 == Upgrade Notice ==
+
+= 2.0.0 =
+Adds the safe v2 Rank Math action API for AI clients. Mutations still require dryRun=false and force=true.
 
 = 1.0.17 =
 MCP clients can now discover Rank Math global config query/mutate tools for Titles, Sitemap, Social, modules and related option groups.

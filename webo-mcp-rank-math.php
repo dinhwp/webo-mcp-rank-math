@@ -5,7 +5,7 @@
  * Plugin Name: WEBO MCP - Rank Math Addon
  * Plugin URI: https://webomcp.com
  * Description: Rank Math SEO management abilities addon for WEBO MCP.
- * Version: 1.1.0
+ * Version: 2.0.0
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: webo-mcp, seo-by-rank-math
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'WEBO_MCP_RANK_MATH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WEBO_MCP_RANK_MATH_URL', plugin_dir_url( __FILE__ ) );
-define( 'WEBO_MCP_RANK_MATH_VERSION', '1.1.0' );
+define( 'WEBO_MCP_RANK_MATH_VERSION', '2.0.0' );
 if ( ! defined( 'WEBO_MCP_LICENSE_STORE_URL' ) ) {
 	define( 'WEBO_MCP_LICENSE_STORE_URL', 'https://webomcp.com' );
 }
@@ -62,7 +62,7 @@ function webo_mcp_rank_math_public_mcp_ability_names() {
 		'webo-rank-math/redirect-query',
 		'webo-rank-math/redirect-mutate',
 		'webo-rank-math/schema-mutate',
-		'webo-rank-math/semantic-action',  // AI-first semantic tools (v1.1.0+)
+		'webo-rank-math/semantic-action',  // AI-first semantic and v2 action tools.
 	);
 }
 
