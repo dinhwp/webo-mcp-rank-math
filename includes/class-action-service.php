@@ -490,7 +490,13 @@ if ( ! class_exists( 'WeboMcpRankMath_ActionService' ) ) {
 		}
 
 		private static function gsc_available() {
-			return function_exists( 'webo_mcp_gsc_query' ) || function_exists( 'webo_gsc_query' ) || class_exists( 'WeboMcpGsc' ) || class_exists( 'Webo_MCP_GSC' );
+			return function_exists( 'webo_mcp_gsc_query' )
+				|| function_exists( 'webo_gsc_query' )
+				|| class_exists( 'WeboMCPGSC\\Plugin' )
+				|| class_exists( 'WeboMCPGSC\\Rank_Math_Bridge' )
+				|| class_exists( 'WeboMCPGSC\\Gsc_Client' )
+				|| class_exists( 'WeboMcpGsc' )
+				|| class_exists( 'Webo_MCP_GSC' );
 		}
 
 		private static function log_action( $action, $dry_run, $changed, $extra ) {
