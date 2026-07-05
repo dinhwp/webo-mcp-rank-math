@@ -4,6 +4,22 @@ Rank Math SEO addon for WEBO MCP (v1.1.0). Exposes `webo-rank-math/*` abilities 
 
 **v1.1.0** introduces an AI-first semantic layer with layered architecture (Repository / Service / Validator / Mapper / Snapshot) on top of all existing tools — no backward-incompatible changes.
 
+## v2 action-level API
+
+Use `webo-rank-math/semantic-action` or `webo-rank-math/config-mutate` with high-level actions instead of sending raw Rank Math option payloads. Mutating v2 actions default to preview mode and only write when both `dryRun=false` (or `dry_run=false`) and `force=true` are supplied.
+
+Supported v2 actions: `optimize-settings`, `complete-brand-profile`, `fix-common-issues`, `flush-rankmath-cache`, `ai-optimize-low-ctr-posts`, `generate-faq-schema`, `rebuild-internal-links`, and `sync-gsc`.
+
+```json
+{
+  "action": "optimize-settings",
+  "profile": "saas",
+  "dryRun": false,
+  "force": true
+}
+```${nl}
+Every write returns a diff and `backup_id`/`snapshot_id`; dry-run responses never write options.
+
 ## Website
 
 [webomcp.com](https://webomcp.com) — product overview, docs, and ecosystem updates.

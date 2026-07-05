@@ -766,6 +766,7 @@ function webo_rank_math_config_mutate( $input ) {
 	$semantic_actions = array(
 		'apply-brand-profile', 'complete-brand-profile', 'entity-cleanup', 'migrate-brand', 'brand-cleanup', 'configure-homepage', 'configure-social',
 		'configure-schema-defaults', 'configure-sitemap-profile', 'audit-brand-seo', 'fix-brand-seo',
+		'optimize-settings', 'fix-common-issues', 'flush-rankmath-cache', 'ai-optimize-low-ctr-posts', 'generate-faq-schema', 'rebuild-internal-links', 'sync-gsc',
 	);
 	if ( in_array( $action, $semantic_actions, true ) && function_exists( 'webo_rank_math_semantic_action' ) ) {
 		return webo_rank_math_semantic_action( $input );
@@ -775,7 +776,9 @@ function webo_rank_math_config_mutate( $input ) {
 		'update-options'       => webo_rank_math_update_options( $input ),
 		'update-modules'       => webo_rank_math_update_modules( $input ),
 		'flush-sitemap-cache'  => webo_rank_math_flush_sitemap_cache( $input ),
+		'flush-rankmath-cache' => WeboMcpRankMath_ActionService::dispatch( $input ),
 		'apply-basic-seo',
+		'optimize-settings'    => WeboMcpRankMath_ActionService::dispatch( $input ),
 		'optimize-basic',
 		'optimize-basic-settings',
 		'seo-baseline'         => webo_rank_math_apply_basic_seo_settings( $input ),
@@ -955,7 +958,7 @@ add_action( 'wp_abilities_api_init', function () {
 	// Config mutate
 	wp_register_ability( 'webo-rank-math/config-mutate', array(
 		'label'       => 'Rank Math Config Mutation',
-		'description' => 'Unified Rank Math configuration mutation. action: update-options, update-modules, flush-sitemap-cache, apply-basic-seo.',
+		'description' => 'Unified Rank Math configuration mutation. action: update-options, update-modules, flush-sitemap-cache, apply-basic-seo, optimize-settings, fix-common-issues, flush-rankmath-cache, ai-optimize-low-ctr-posts, generate-faq-schema, rebuild-internal-links, sync-gsc.',
 		'category'    => 'webo-rank-math',
 		'input_schema' => array(
 			'type'                 => 'object',

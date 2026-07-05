@@ -13,6 +13,8 @@ Rank Math SEO addon for WEBO MCP. Exposes webo-rank-math tools for SEO meta, opt
 
 == Description ==
 
+This release adds a v2 action-level API for Rank Math MCP: optimize-settings, complete-brand-profile, fix-common-issues, flush-rankmath-cache, ai-optimize-low-ctr-posts, generate-faq-schema, rebuild-internal-links, and sync-gsc. Mutating v2 actions default to dry-run and require dryRun=false plus force=true to write.
+
 WEBO MCP - Rank Math Addon extends WEBO MCP with Rank Math SEO management abilities.
 
 = Official site: https://webomcp.com =

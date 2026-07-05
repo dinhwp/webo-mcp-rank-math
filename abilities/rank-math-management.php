@@ -54,6 +54,9 @@ if ( ! class_exists( 'WeboMcpRankMath_BrandProfileService' ) ) {
 if ( ! class_exists( 'WeboMcpRankMath_MigrationService' ) ) {
 	require_once $includes_path . 'class-migration-service.php';
 }
+if ( ! class_exists( 'WeboMcpRankMath_ActionService' ) ) {
+	require_once $includes_path . 'class-action-service.php';
+}
 
 // -------------------------------------------------------------------
 // 5. Presentation — Category + Semantic actions dispatcher.

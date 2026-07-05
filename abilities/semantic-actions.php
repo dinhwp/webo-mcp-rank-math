@@ -18,6 +18,7 @@
  *  - configure-sitemap-profile  Configure sitemap post type and taxonomy settings.
  *  - audit-brand-seo         Read and report current brand-related Rank Math settings.
  *  - fix-brand-seo           Auto-fix missing or empty brand fields.
+ *  - optimize-settings / fix-common-issues / flush-rankmath-cache / ai-optimize-low-ctr-posts / generate-faq-schema / rebuild-internal-links / sync-gsc (v2 action-level API).
  *
  * @package webo-mcp-rank-math
  */
@@ -498,6 +499,13 @@ function webo_rank_math_semantic_action( $input ) {
 		'configure-sitemap-profile'  => webo_rank_math_action_configure_sitemap_profile( $input ),
 		'audit-brand-seo'            => webo_rank_math_action_audit_brand_seo( $input ),
 		'fix-brand-seo'              => webo_rank_math_action_fix_brand_seo( $input ),
+		'optimize-settings',
+		'fix-common-issues',
+		'flush-rankmath-cache',
+		'ai-optimize-low-ctr-posts',
+		'generate-faq-schema',
+		'rebuild-internal-links',
+		'sync-gsc'                  => WeboMcpRankMath_ActionService::dispatch( $input ),
 		default                      => new WP_Error(
 			'webo_mcp_invalid_action',
 			sprintf(
@@ -515,7 +523,7 @@ function webo_rank_math_semantic_action( $input ) {
 add_action( 'wp_abilities_api_init', function () {
 	wp_register_ability( 'webo-rank-math/semantic-action', array(
 		'label'       => 'Rank Math Semantic Action',
-		'description' => 'AI-first semantic actions for brand, homepage, social, schema, and sitemap configuration. action: apply-brand-profile, complete-brand-profile, entity-cleanup, migrate-brand, brand-cleanup, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo.',
+		'description' => 'AI-first semantic and v2 action-level Rank Math actions. action: apply-brand-profile, complete-brand-profile, entity-cleanup, migrate-brand, brand-cleanup, configure-homepage, configure-social, configure-schema-defaults, configure-sitemap-profile, audit-brand-seo, fix-brand-seo, optimize-settings, fix-common-issues, flush-rankmath-cache, ai-optimize-low-ctr-posts, generate-faq-schema, rebuild-internal-links, sync-gsc.',
 		'category'    => 'webo-rank-math',
 		'input_schema' => array(
 			'type'                 => 'object',
@@ -537,6 +545,13 @@ add_action( 'wp_abilities_api_init', function () {
 						'configure-sitemap-profile',
 						'audit-brand-seo',
 						'fix-brand-seo',
+						'optimize-settings',
+						'fix-common-issues',
+						'flush-rankmath-cache',
+						'ai-optimize-low-ctr-posts',
+						'generate-faq-schema',
+						'rebuild-internal-links',
+						'sync-gsc',
 					),
 				),
 				// apply-brand-profile inputs
@@ -591,6 +606,18 @@ add_action( 'wp_abilities_api_init', function () {
 				'exclude_taxonomies'   => array( 'type' => 'array', 'items' => array( 'type' => 'string' ) ),
 				// shared
 				'dry_run'              => array( 'type' => 'boolean', 'default' => true ),
+				'dryRun'               => array( 'type' => 'boolean', 'default' => true ),
+				'force'                => array( 'type' => 'boolean', 'default' => false ),
+				'brandName'            => array( 'type' => 'string' ),
+				'alternateName'        => array( 'type' => 'string' ),
+				'openGraphImage'       => array( 'type' => 'string', 'format' => 'uri' ),
+				'sameAs'               => array( 'type' => 'array', 'items' => array( 'type' => 'string', 'format' => 'uri' ) ),
+				'nofollowExternalLinks'=> array( 'type' => 'boolean' ),
+				'nofollowImageLinks'   => array( 'type' => 'boolean' ),
+				'limit'                => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 100 ),
+				'postIds'              => array( 'type' => 'array', 'items' => array( 'type' => 'integer' ) ),
+				'questionsPerPost'     => array( 'type' => 'integer', 'minimum' => 1, 'maximum' => 10 ),
+				'mode'                 => array( 'type' => 'string', 'enum' => array( 'suggest', 'insert' ) ),
 				'site_id'              => array( 'type' => 'integer', 'minimum' => 1 ),
 			),
 		),
