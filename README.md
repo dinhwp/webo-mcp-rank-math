@@ -1,12 +1,12 @@
 # WEBO MCP - Rank Math Addon
 
-Rank Math SEO addon for WEBO MCP (v2.0.0). Exposes `webo-rank-math/*` abilities through the WordPress Abilities API bridge so AI clients (ChatGPT, Claude, Codex, Cursor, etc.) can manage Rank Math SEO settings without wp-admin or WP-CLI.
+Rank Math SEO addon for WEBO MCP (v2.0.1). Exposes `webo-rank-math/*` abilities through the WordPress Abilities API bridge so AI clients (ChatGPT, Claude, Codex, Cursor, etc.) can manage Rank Math SEO settings without wp-admin or WP-CLI.
 
-**v2.0.0** adds a safe action-level API on top of the existing semantic layer, with dry-run-first responses, option allowlists, and automatic backups before forced mutations. No backward-incompatible changes.
+**v2.0.1** fixes mutation write mode so `dryRun=false` / `dry_run=false` performs real SEO updates, while guarded actions still require explicit `force=true`.
 
 ## v2 action-level API
 
-Use `webo-rank-math/semantic-action` or `webo-rank-math/config-mutate` with high-level actions instead of sending raw Rank Math option payloads. Mutating v2 actions default to preview mode and only write when both `dryRun=false` (or `dry_run=false`) and `force=true` are supplied.
+Use `webo-rank-math/semantic-action` or `webo-rank-math/config-mutate` with high-level actions instead of sending raw Rank Math option payloads. Mutating v2 actions default to preview mode and write when `dryRun=false` (or `dry_run=false`) is supplied. Destructive/guarded actions still require `force=true` in addition to `dryRun=false`.
 
 Supported v2 actions: `optimize-settings`, `complete-brand-profile`, `fix-common-issues`, `flush-rankmath-cache`, `ai-optimize-low-ctr-posts`, `generate-faq-schema`, `rebuild-internal-links`, and `sync-gsc`.
 

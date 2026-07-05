@@ -180,11 +180,12 @@ function webo_rank_math_resolve_dry_run( $input, $is_dangerous = false ) {
 		return ! empty( $mode['dry_run'] );
 	}
 
-	if ( ! empty( $input['force'] ) ) {
-		return false;
+	if ( class_exists( '\WeboMCP\Core\MutationGuard' ) ) {
+		$mode = \WeboMCP\Core\MutationGuard::mode( (array) $input, (bool) $is_dangerous );
+		return ! empty( $mode['dry_run'] );
 	}
 
-	return ! array_key_exists( 'dry_run', (array) $input ) || filter_var( $input['dry_run'], FILTER_VALIDATE_BOOLEAN );
+	return ! array_key_exists( 'dry_run', (array) $input ) || webo_mcp_is_truthy( $input['dry_run'] );
 }
 
 function webo_rank_math_build_post_meta_diff( $before, $after, $keys ) {

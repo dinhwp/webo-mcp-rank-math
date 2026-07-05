@@ -5,7 +5,7 @@ Tags: mcp, seo, rank-math, ai, automation
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.0.0
+Stable tag: 2.0.1
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -13,7 +13,7 @@ Rank Math SEO addon for WEBO MCP. Exposes webo-rank-math tools for SEO meta, opt
 
 == Description ==
 
-This release adds a v2 action-level API for Rank Math MCP: optimize-settings, complete-brand-profile, fix-common-issues, flush-rankmath-cache, ai-optimize-low-ctr-posts, generate-faq-schema, rebuild-internal-links, and sync-gsc. Mutating v2 actions default to dry-run and require dryRun=false plus force=true to write.
+This release adds a v2 action-level API for Rank Math MCP: optimize-settings, complete-brand-profile, fix-common-issues, flush-rankmath-cache, ai-optimize-low-ctr-posts, generate-faq-schema, rebuild-internal-links, and sync-gsc. Mutations default to dry-run and write when dryRun=false or dry_run=false is supplied; guarded actions also require force=true.
 
 WEBO MCP - Rank Math Addon extends WEBO MCP with Rank Math SEO management abilities.
 
@@ -89,6 +89,11 @@ The maintained skill files live in the main WEBO MCP repository, not in this add
 
 == Changelog ==
 
+= 2.0.1 =
+* Fix: `seo_quick_update` and post SEO mutations now execute real updates for `dry_run=false`, `false`, `0`, and `"0"`.
+* Fix: align bundled mutation contract with WEBO MCP Core write-mode handling.
+* Test: add execution coverage for Rank Math title, description, and focus keyword updates.
+
 = 2.0.0 =
 * Add v2 action-level Rank Math MCP API for optimize-settings, complete-brand-profile, fix-common-issues, flush-rankmath-cache, ai-optimize-low-ctr-posts, generate-faq-schema, rebuild-internal-links, and sync-gsc.
 * Keep v2 writes safe by default with dry-run responses, option group allowlists, and automatic backups before forced mutations.
@@ -130,7 +135,7 @@ The maintained skill files live in the main WEBO MCP repository, not in this add
 == Upgrade Notice ==
 
 = 2.0.0 =
-Adds the safe v2 Rank Math action API for AI clients. Mutations still require dryRun=false and force=true.
+Adds the safe v2 Rank Math action API for AI clients. Mutations default to preview and execute with dryRun=false; guarded actions also require force=true.
 
 = 1.0.17 =
 MCP clients can now discover Rank Math global config query/mutate tools for Titles, Sitemap, Social, modules and related option groups.

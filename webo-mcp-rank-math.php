@@ -5,7 +5,7 @@
  * Plugin Name: WEBO MCP - Rank Math Addon
  * Plugin URI: https://webomcp.com
  * Description: Rank Math SEO management abilities addon for WEBO MCP.
- * Version: 2.0.0
+ * Version: 2.0.1
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: webo-mcp, seo-by-rank-math
@@ -23,13 +23,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'WEBO_MCP_RANK_MATH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WEBO_MCP_RANK_MATH_URL', plugin_dir_url( __FILE__ ) );
-define( 'WEBO_MCP_RANK_MATH_VERSION', '2.0.0' );
+define( 'WEBO_MCP_RANK_MATH_VERSION', '2.0.1' );
 if ( ! defined( 'WEBO_MCP_LICENSE_STORE_URL' ) ) {
 	define( 'WEBO_MCP_LICENSE_STORE_URL', 'https://webomcp.com' );
 }
 define( 'WEBO_MCP_RANK_MATH_ITEM_ID', 4888 );
 define( 'WEBO_MCP_RANK_MATH_ITEM_NAME', 'WEBO MCP Rank Math SEO Addon' );
 
+require_once WEBO_MCP_RANK_MATH_PATH . 'includes/class-mutation-guard.php';
 require_once WEBO_MCP_RANK_MATH_PATH . 'includes/mutation-contract.php';
 require_once WEBO_MCP_RANK_MATH_PATH . 'includes/license-client.php';
 
@@ -995,7 +996,8 @@ function webo_mcp_rank_math_execute_public_post_meta_tool( $tool_name, $argument
 
 		$keys    = array_keys( $updates );
 		$before  = webo_rank_math_collect_post_meta( $post_id, $keys );
-		$dry_run = ! empty( $arguments['force'] ) ? false : ( ! array_key_exists( 'dry_run', $arguments ) || filter_var( $arguments['dry_run'], FILTER_VALIDATE_BOOLEAN ) );
+		$mode    = webo_mcp_resolve_mutation_mode( $arguments, false );
+		$dry_run = ! empty( $mode['dry_run'] );
 		$planned = array_merge( $before, $updates );
 
 		webo_mcp_rank_math_audit_public_post_meta(
@@ -1565,7 +1567,7 @@ function webo_mcp_rank_math_register_post_meta_tools_to_core_registry() {
 			},
 		),
 		'webo-rank-math/schema-mutate' => array(
-			'description' => 'Rank Math schema mutation dispatcher. action: upsert, delete, cleanup. Defaults to dry_run=true; set dry_run=false or force=true to write rank_math_schema_* meta.',
+			'description' => 'Rank Math schema mutation dispatcher. action: upsert, delete, cleanup. Defaults to dry_run=true; set dry_run=false to write rank_math_schema_* meta. Destructive delete/cleanup actions require dry_run=false plus force=true or checkpoint_id.',
 			'arguments'   => webo_mcp_rank_math_schema_mutate_tool_arguments(),
 			'callback'    => static function ( array $arguments ) {
 				return webo_mcp_rank_math_execute_schema_mutate_tool( $arguments );

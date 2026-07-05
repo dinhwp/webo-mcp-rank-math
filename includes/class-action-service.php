@@ -114,8 +114,8 @@ if ( ! class_exists( 'WeboMcpRankMath_ActionService' ) ) {
 			$mode = function_exists( 'webo_mcp_resolve_mutation_mode' )
 				? webo_mcp_resolve_mutation_mode( (array) $input, true )
 				: array(
-					'dry_run' => ( empty( $input['force'] ) || ( array_key_exists( 'dry_run', $input ) && webo_mcp_is_truthy( $input['dry_run'] ) ) ),
-					'force'   => ! empty( $input['force'] ),
+					'dry_run' => ! array_key_exists( 'dry_run', (array) $input ) || webo_mcp_is_truthy( $input['dry_run'] ),
+					'force'   => array_key_exists( 'force', (array) $input ) && webo_mcp_is_truthy( $input['force'] ),
 					'blocked' => false,
 					'reason'  => '',
 				);
@@ -123,7 +123,7 @@ if ( ! class_exists( 'WeboMcpRankMath_ActionService' ) ) {
 			if ( empty( $mode['dry_run'] ) && empty( $mode['force'] ) ) {
 				$mode['dry_run'] = true;
 				$mode['blocked'] = true;
-				$mode['reason']  = 'Mutating Rank Math action requires force=true with dryRun=false. A dry-run preview was returned instead.';
+				$mode['reason']  = 'Mutating Rank Math action requires dryRun=false plus force=true. A dry-run preview was returned instead.';
 			}
 
 			return $mode;
@@ -510,7 +510,7 @@ if ( ! class_exists( 'WeboMcpRankMath_ActionService' ) ) {
 
 		private static function next_actions( $action ) {
 			return match ( $action ) {
-				'optimize-settings'      => array( 'Run fix-common-issues as a dry-run.', 'Review changes, then execute with dryRun=false and force=true.' ),
+				'optimize-settings'      => array( 'Run fix-common-issues as a dry-run.', 'Review changes, then execute guarded actions with dryRun=false and force=true.' ),
 				'complete-brand-profile' => array( 'Run flush-rankmath-cache after applying the profile.' ),
 				'fix-common-issues'      => array( 'Review warnings for missing OpenGraph fallback image.' ),
 				'sync-gsc'               => array( 'Run ai-optimize-low-ctr-posts after GSC data is available.' ),
