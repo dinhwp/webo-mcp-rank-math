@@ -180,6 +180,47 @@ if ( ! function_exists( 'delete_post_meta' ) ) {
 	}
 }
 
+if ( ! function_exists( 'metadata_exists' ) ) {
+	function metadata_exists( $type, $object_id, $meta_key ) {
+		unset( $type );
+		return array_key_exists( (string) $meta_key, $GLOBALS['webo_rm_quick_meta'][ (int) $object_id ] ?? array() );
+	}
+}
+
+if ( ! function_exists( 'wp_rand' ) ) {
+	function wp_rand() {
+		return 12345;
+	}
+}
+
+if ( ! function_exists( 'current_time' ) ) {
+	function current_time( $type ) {
+		unset( $type );
+		return '2026-07-06T00:00:00+07:00';
+	}
+}
+
+if ( ! function_exists( 'set_transient' ) ) {
+	function set_transient( $transient, $value, $expiration = 0 ) {
+		unset( $expiration );
+		$GLOBALS['webo_rm_quick_transients'][ (string) $transient ] = $value;
+		return true;
+	}
+}
+
+if ( ! function_exists( 'get_transient' ) ) {
+	function get_transient( $transient ) {
+		return $GLOBALS['webo_rm_quick_transients'][ (string) $transient ] ?? false;
+	}
+}
+
+if ( ! function_exists( 'delete_transient' ) ) {
+	function delete_transient( $transient ) {
+		unset( $GLOBALS['webo_rm_quick_transients'][ (string) $transient ] );
+		return true;
+	}
+}
+
 if ( ! function_exists( 'clean_post_cache' ) ) {
 	function clean_post_cache( $post_id ) {
 		unset( $post_id );
@@ -305,6 +346,70 @@ foreach ( $execute_cases as $name => $dry_run_value ) {
 		'meta'             => $GLOBALS['webo_rm_quick_meta'][4048],
 	);
 }
+
+$GLOBALS['webo_rm_quick_meta'][4048] = array(
+	'rank_math_title'         => 'Old Title',
+	'rank_math_description'   => 'Old Description',
+	'rank_math_focus_keyword' => 'Old Keyword',
+);
+$checkpoint_result = webo_mcp_rank_math_execute_quick_update_tool(
+	array(
+		'post_id'       => 4048,
+		'title'         => 'Checkpoint Title',
+		'description'   => 'Checkpoint Description',
+		'focus_keyword' => 'Checkpoint Keyword',
+		'dry_run'       => false,
+	)
+);
+$checkpoint_id = is_wp_error( $checkpoint_result ) ? '' : (string) ( $checkpoint_result['checkpoint_id'] ?? '' );
+$rollback_result = $checkpoint_id ? webo_mcp_rank_math_execute_rollback_checkpoint_tool( array( 'checkpoint_id' => $checkpoint_id ) ) : null;
+$checkpoint_matches = ! is_wp_error( $checkpoint_result )
+	&& '' !== $checkpoint_id
+	&& ! is_wp_error( $rollback_result )
+	&& true === ( $rollback_result['success'] ?? null )
+	&& 'Old Title' === $GLOBALS['webo_rm_quick_meta'][4048]['rank_math_title']
+	&& 'Old Description' === $GLOBALS['webo_rm_quick_meta'][4048]['rank_math_description']
+	&& 'Old Keyword' === $GLOBALS['webo_rm_quick_meta'][4048]['rank_math_focus_keyword'];
+$failed = $failed || ! $checkpoint_matches;
+$results['quick_checkpoint_rollback'] = array(
+	'expect'           => 'ROLLBACK',
+	'actual'           => $checkpoint_matches ? 'ROLLBACK' : 'FAIL',
+	'matches_expected' => $checkpoint_matches,
+	'checkpoint_id'    => $checkpoint_id,
+	'meta'             => $GLOBALS['webo_rm_quick_meta'][4048],
+);
+
+$GLOBALS['webo_rm_quick_meta'][4048] = array( 'rank_math_title' => 'Old Bulk Title' );
+$bulk_result = webo_mcp_rank_math_execute_bulk_update_tool(
+	array(
+		'items' => array(
+			array(
+				'post_id'     => 4048,
+				'title'       => 'Bulk Title',
+				'description' => 'Bulk Description',
+			),
+		),
+		'dry_run' => false,
+	)
+);
+$bulk_checkpoint_id = is_wp_error( $bulk_result ) ? '' : (string) ( $bulk_result['checkpoint_id'] ?? '' );
+$bulk_rollback = $bulk_checkpoint_id ? webo_mcp_rank_math_execute_rollback_checkpoint_tool( array( 'checkpoint_id' => $bulk_checkpoint_id ) ) : null;
+$bulk_matches = ! is_wp_error( $bulk_result )
+	&& false === ( $bulk_result['dry_run'] ?? null )
+	&& true === ( $bulk_result['executed'] ?? null )
+	&& '' !== $bulk_checkpoint_id
+	&& ! is_wp_error( $bulk_rollback )
+	&& true === ( $bulk_rollback['success'] ?? null )
+	&& 'Old Bulk Title' === $GLOBALS['webo_rm_quick_meta'][4048]['rank_math_title']
+	&& ! array_key_exists( 'rank_math_description', $GLOBALS['webo_rm_quick_meta'][4048] );
+$failed = $failed || ! $bulk_matches;
+$results['seo_bulk_update_checkpoint_rollback'] = array(
+	'expect'           => 'ROLLBACK',
+	'actual'           => $bulk_matches ? 'ROLLBACK' : 'FAIL',
+	'matches_expected' => $bulk_matches,
+	'checkpoint_id'    => $bulk_checkpoint_id,
+	'meta'             => $GLOBALS['webo_rm_quick_meta'][4048],
+);
 
 echo wp_json_encode(
 	array(
