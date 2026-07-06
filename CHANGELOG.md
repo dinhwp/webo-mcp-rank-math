@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.0.4
+
+- Kept no-op `seo_bulk_update` calls fast by skipping Rank Math cache and sitemap flushes when no meta changes are planned.
+
 ## 2.0.3
 
 - Hardened `seo_bulk_update` for `post_id`, `slug`, or `url` targeting.

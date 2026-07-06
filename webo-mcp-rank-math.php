@@ -5,7 +5,7 @@
  * Plugin Name: WEBO MCP - Rank Math Addon
  * Plugin URI: https://webomcp.com
  * Description: Rank Math SEO management abilities addon for WEBO MCP.
- * Version: 2.0.3
+ * Version: 2.0.4
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: webo-mcp, seo-by-rank-math
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'WEBO_MCP_RANK_MATH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WEBO_MCP_RANK_MATH_URL', plugin_dir_url( __FILE__ ) );
-define( 'WEBO_MCP_RANK_MATH_VERSION', '2.0.3' );
+define( 'WEBO_MCP_RANK_MATH_VERSION', '2.0.4' );
 if ( ! defined( 'WEBO_MCP_LICENSE_STORE_URL' ) ) {
 	define( 'WEBO_MCP_LICENSE_STORE_URL', 'https://webomcp.com' );
 }
@@ -1313,7 +1313,7 @@ function webo_mcp_rank_math_execute_bulk_update_tool( $arguments ) {
 				webo_mcp_rank_math_clear_post_meta_caches( (int) $item['post_id'] );
 			}
 
-			if ( ! empty( $prepared ) ) {
+			if ( $planned_count > 0 ) {
 				$flush = function_exists( 'webo_rank_math_flush_sitemap_cache' )
 					? webo_rank_math_flush_sitemap_cache( array_merge( $arguments, array( 'dry_run' => false ) ) )
 					: null;
@@ -1350,8 +1350,8 @@ function webo_mcp_rank_math_execute_bulk_update_tool( $arguments ) {
 					'failed_items'    => $failed_items,
 					'updated'         => ! $dry_run && $planned_count > 0,
 					'updated_count'   => $dry_run ? 0 : $planned_count,
-					'cache_flushed'   => ! $dry_run && ! empty( $prepared ),
-					'sitemap_regenerated' => ! $dry_run && ! empty( $prepared ),
+					'cache_flushed'   => ! $dry_run && $planned_count > 0,
+					'sitemap_regenerated' => ! $dry_run && $planned_count > 0,
 				),
 			)
 		);
