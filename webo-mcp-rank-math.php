@@ -5,7 +5,7 @@
  * Plugin Name: WEBO MCP - Rank Math Addon
  * Plugin URI: https://webomcp.com
  * Description: Rank Math SEO management abilities addon for WEBO MCP.
- * Version: 2.0.2
+ * Version: 2.0.3
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Requires Plugins: webo-mcp, seo-by-rank-math
@@ -23,7 +23,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'WEBO_MCP_RANK_MATH_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WEBO_MCP_RANK_MATH_URL', plugin_dir_url( __FILE__ ) );
-define( 'WEBO_MCP_RANK_MATH_VERSION', '2.0.2' );
+define( 'WEBO_MCP_RANK_MATH_VERSION', '2.0.3' );
 if ( ! defined( 'WEBO_MCP_LICENSE_STORE_URL' ) ) {
 	define( 'WEBO_MCP_LICENSE_STORE_URL', 'https://webomcp.com' );
 }
@@ -389,6 +389,32 @@ function webo_mcp_rank_math_resolve_tool_post_id( $arguments ) {
 	}
 
 	return $post_id;
+}
+
+/**
+ * Resolve a post ID for bulk SEO items without aborting the whole batch.
+ *
+ * @param array<string,mixed> $item Batch item.
+ * @return int|\WP_Error
+ */
+function webo_mcp_rank_math_resolve_bulk_item_post_id( $item ) {
+	$item = (array) $item;
+	if ( ! empty( $item['url'] ) && empty( $item['post_id'] ) && empty( $item['id'] ) && empty( $item['slug'] ) ) {
+		$url     = esc_url_raw( (string) $item['url'] );
+		$post_id = function_exists( 'url_to_postid' ) ? absint( url_to_postid( $url ) ) : 0;
+
+		if ( $post_id < 1 ) {
+			$path = wp_parse_url( $url, PHP_URL_PATH );
+			$slug = $path ? basename( trim( (string) $path, '/' ) ) : '';
+			if ( '' !== $slug ) {
+				$item['slug'] = $slug;
+			}
+		} else {
+			$item['post_id'] = $post_id;
+		}
+	}
+
+	return webo_mcp_rank_math_resolve_tool_post_id( $item );
 }
 
 /**
@@ -1203,32 +1229,47 @@ function webo_mcp_rank_math_execute_bulk_update_tool( $arguments ) {
 		$post_keys     = array();
 		$planned_count = 0;
 		$results       = array();
+		$failed_items  = array();
 
 		foreach ( array_values( $items ) as $index => $item ) {
 			$item = (array) $item;
 			$forbidden = webo_mcp_rank_math_quick_update_forbidden_fields( $item );
 			if ( ! empty( $forbidden ) ) {
-				return new WP_Error(
-					'webo_mcp_rank_math_bulk_forbidden_field',
-					sprintf( 'seo_bulk_update item %d only accepts title, description, and focus_keyword. Forbidden fields: %s', $index, implode( ', ', $forbidden ) ),
-					array( 'status' => 400, 'index' => $index, 'fields' => $forbidden )
+				$failed_items[] = array(
+					'index'         => $index,
+					'error_code'    => 'webo_mcp_rank_math_bulk_forbidden_field',
+					'error_message' => sprintf( 'seo_bulk_update item %d only accepts title, description, and focus_keyword. Forbidden fields: %s', $index, implode( ', ', $forbidden ) ),
+					'fields'        => $forbidden,
 				);
+				continue;
 			}
 
 			$updates = webo_mcp_rank_math_extract_quick_meta_updates( $item );
 			if ( empty( $updates ) ) {
-				return new WP_Error( 'webo_mcp_rank_math_bulk_no_quick_fields', sprintf( 'seo_bulk_update item %d requires title, description, or focus_keyword.', $index ), array( 'status' => 400, 'index' => $index ) );
+				$failed_items[] = array(
+					'index'         => $index,
+					'error_code'    => 'webo_mcp_rank_math_bulk_no_quick_fields',
+					'error_message' => sprintf( 'seo_bulk_update item %d requires title, description, or focus_keyword.', $index ),
+				);
+				continue;
 			}
 
-			$post_id = webo_mcp_rank_math_resolve_tool_post_id( $item );
+			$post_id = webo_mcp_rank_math_resolve_bulk_item_post_id( $item );
 			if ( is_wp_error( $post_id ) ) {
-				return $post_id;
+				$failed_items[] = array(
+					'index'         => $index,
+					'error_code'    => $post_id->get_error_code(),
+					'error_message' => $post_id->get_error_message(),
+				);
+				continue;
 			}
 
 			$post_keys[ $post_id ] = array_values( array_unique( array_merge( $post_keys[ $post_id ] ?? array(), array_keys( $updates ) ) ) );
 			$prepared[] = array(
 				'index'    => $index,
 				'post_id'  => $post_id,
+				'url'      => isset( $item['url'] ) ? esc_url_raw( (string) $item['url'] ) : null,
+				'slug'     => isset( $item['slug'] ) ? sanitize_title( (string) $item['slug'] ) : null,
 				'seo_meta' => $updates,
 			);
 		}
@@ -1251,6 +1292,8 @@ function webo_mcp_rank_math_execute_bulk_update_tool( $arguments ) {
 			$results[] = array(
 				'index'         => $item['index'],
 				'post_id'       => $post_id,
+				'url'           => $item['url'],
+				'slug'          => $item['slug'],
 				'keys'          => $keys,
 				'planned_count' => $count,
 				'diff'          => $diff,
@@ -1269,6 +1312,14 @@ function webo_mcp_rank_math_execute_bulk_update_tool( $arguments ) {
 				}
 				webo_mcp_rank_math_clear_post_meta_caches( (int) $item['post_id'] );
 			}
+
+			if ( ! empty( $prepared ) ) {
+				$flush = function_exists( 'webo_rank_math_flush_sitemap_cache' )
+					? webo_rank_math_flush_sitemap_cache( array_merge( $arguments, array( 'dry_run' => false ) ) )
+					: null;
+				do_action( 'rank_math/sitemap/flush_cache' );
+				do_action( 'rank_math/sitemap/build_cache' );
+			}
 		}
 
 		webo_mcp_rank_math_log_event(
@@ -1276,6 +1327,7 @@ function webo_mcp_rank_math_execute_bulk_update_tool( $arguments ) {
 			array(
 				'dry_run'       => $dry_run,
 				'processed'     => count( $prepared ),
+				'failed'        => count( $failed_items ),
 				'planned_count' => $planned_count,
 				'checkpoint_id' => $checkpoint['checkpoint_id'] ?? null,
 			)
@@ -1292,8 +1344,14 @@ function webo_mcp_rank_math_execute_bulk_update_tool( $arguments ) {
 				'context'       => array(
 					'tool'            => 'seo_bulk_update',
 					'processed_count' => count( $prepared ),
+					'success_count'   => count( $prepared ),
+					'failure_count'   => count( $failed_items ),
+					'updated_items'   => $dry_run ? array() : $results,
+					'failed_items'    => $failed_items,
 					'updated'         => ! $dry_run && $planned_count > 0,
 					'updated_count'   => $dry_run ? 0 : $planned_count,
+					'cache_flushed'   => ! $dry_run && ! empty( $prepared ),
+					'sitemap_regenerated' => ! $dry_run && ! empty( $prepared ),
 				),
 			)
 		);

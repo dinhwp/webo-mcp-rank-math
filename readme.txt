@@ -5,7 +5,7 @@ Tags: mcp, seo, rank-math, ai, automation
 Requires at least: 6.0
 Tested up to: 6.9
 Requires PHP: 7.4
-Stable tag: 2.0.2
+Stable tag: 2.0.3
 License: GPL v2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -89,6 +89,12 @@ The maintained skill files live in the main WEBO MCP repository, not in this add
 
 == Changelog ==
 
+= 2.0.3 =
+* Harden `seo_bulk_update` for `post_id`, `slug`, or `url` targeting.
+* Process batch items independently without stopping on per-post errors.
+* Flush Rank Math cache and regenerate sitemap after real bulk writes.
+* Return success/failure counts, checkpoint ID, updated items, failed items, and before/after diffs.
+
 = 2.0.2 =
 * Add exact AI-client tools `seo_bulk_update`, `ai_optimize_low_ctr_posts`, and `rollback_checkpoint`.
 * Add post-meta checkpoints for `seo_quick_update` and `seo_bulk_update` before real writes.
@@ -138,6 +144,9 @@ The maintained skill files live in the main WEBO MCP repository, not in this add
 * Initial public addon release for Rank Math SEO abilities.
 
 == Upgrade Notice ==
+
+= 2.0.3 =
+Improves `seo_bulk_update` for direct ChatGPT batch SEO writes with safer per-item errors and clearer result counts.
 
 = 2.0.2 =
 Adds exact-name AI tools for bulk SEO updates, low-CTR optimization, and checkpoint rollback.

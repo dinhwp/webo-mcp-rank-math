@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.0.3
+
+- Hardened `seo_bulk_update` for `post_id`, `slug`, or `url` targeting.
+- Processed batch items independently without stopping on per-post errors.
+- Flushed Rank Math cache and requested sitemap regeneration after real bulk writes.
+- Returned success/failure counts, checkpoint ID, updated items, failed items, and before/after diffs.
+
 ## 2.0.2
 
 - Added exact AI-client tools `seo_bulk_update`, `ai_optimize_low_ctr_posts`, and `rollback_checkpoint`.

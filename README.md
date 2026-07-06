@@ -1,8 +1,8 @@
 # WEBO MCP - Rank Math Addon
 
-Rank Math SEO addon for WEBO MCP (v2.0.2). Exposes `webo-rank-math/*` abilities through the WordPress Abilities API bridge so AI clients (ChatGPT, Claude, Codex, Cursor, etc.) can manage Rank Math SEO settings without wp-admin or WP-CLI.
+Rank Math SEO addon for WEBO MCP (v2.0.3). Exposes `webo-rank-math/*` abilities through the WordPress Abilities API bridge so AI clients (ChatGPT, Claude, Codex, Cursor, etc.) can manage Rank Math SEO settings without wp-admin or WP-CLI.
 
-**v2.0.2** adds exact AI-client tools for quick SEO writes, bulk SEO writes, low-CTR optimization, and checkpoint rollback. Real post-meta writes create rollback checkpoints.
+**v2.0.3** hardens `seo_bulk_update` for AI clients with `post_id`, `slug`, or `url` targeting, non-stopping batch errors, checkpoints, cache flush, sitemap regeneration, and explicit success/failure counts.
 
 ## v2 action-level API
 

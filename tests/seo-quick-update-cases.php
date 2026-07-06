@@ -49,7 +49,10 @@ if ( ! function_exists( 'add_filter' ) ) {
 
 if ( ! function_exists( 'do_action' ) ) {
 	function do_action( $hook_name, ...$args ) {
-		unset( $hook_name, $args );
+		$GLOBALS['webo_rm_quick_actions'][] = array(
+			'hook' => $hook_name,
+			'args' => $args,
+		);
 	}
 }
 
@@ -87,6 +90,12 @@ if ( ! function_exists( 'absint' ) ) {
 if ( ! function_exists( 'sanitize_title' ) ) {
 	function sanitize_title( $value ) {
 		return strtolower( trim( preg_replace( '/[^a-z0-9]+/i', '-', (string) $value ), '-' ) );
+	}
+}
+
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) {
+		return parse_url( $url, $component );
 	}
 }
 
@@ -148,6 +157,19 @@ if ( ! function_exists( 'get_page_by_path' ) ) {
 			}
 		}
 		return null;
+	}
+}
+
+if ( ! function_exists( 'url_to_postid' ) ) {
+	function url_to_postid( $url ) {
+		$path = wp_parse_url( $url, PHP_URL_PATH );
+		$slug = $path ? basename( trim( (string) $path, '/' ) ) : '';
+		foreach ( $GLOBALS['webo_rm_quick_posts'] as $post ) {
+			if ( $post->post_name === $slug ) {
+				return (int) $post->ID;
+			}
+		}
+		return 0;
 	}
 }
 
@@ -380,13 +402,22 @@ $results['quick_checkpoint_rollback'] = array(
 );
 
 $GLOBALS['webo_rm_quick_meta'][4048] = array( 'rank_math_title' => 'Old Bulk Title' );
+$GLOBALS['webo_rm_quick_actions'] = array();
 $bulk_result = webo_mcp_rank_math_execute_bulk_update_tool(
 	array(
 		'items' => array(
 			array(
-				'post_id'     => 4048,
+				'url'         => 'https://example.test/test-post/',
 				'title'       => 'Bulk Title',
 				'description' => 'Bulk Description',
+			),
+			array(
+				'post_id'   => 4048,
+				'canonical' => 'https://example.test/forbidden',
+			),
+			array(
+				'post_id' => 9999,
+				'title'   => 'Missing post',
 			),
 		),
 		'dry_run' => false,
@@ -400,8 +431,14 @@ $bulk_matches = ! is_wp_error( $bulk_result )
 	&& '' !== $bulk_checkpoint_id
 	&& ! is_wp_error( $bulk_rollback )
 	&& true === ( $bulk_rollback['success'] ?? null )
+	&& 1 === (int) ( $bulk_result['success_count'] ?? 0 )
+	&& 2 === (int) ( $bulk_result['failure_count'] ?? 0 )
+	&& true === ( $bulk_result['cache_flushed'] ?? null )
+	&& true === ( $bulk_result['sitemap_regenerated'] ?? null )
 	&& 'Old Bulk Title' === $GLOBALS['webo_rm_quick_meta'][4048]['rank_math_title']
-	&& ! array_key_exists( 'rank_math_description', $GLOBALS['webo_rm_quick_meta'][4048] );
+	&& ! array_key_exists( 'rank_math_description', $GLOBALS['webo_rm_quick_meta'][4048] )
+	&& in_array( 'rank_math/sitemap/flush_cache', array_column( $GLOBALS['webo_rm_quick_actions'], 'hook' ), true )
+	&& in_array( 'rank_math/sitemap/build_cache', array_column( $GLOBALS['webo_rm_quick_actions'], 'hook' ), true );
 $failed = $failed || ! $bulk_matches;
 $results['seo_bulk_update_checkpoint_rollback'] = array(
 	'expect'           => 'ROLLBACK',
