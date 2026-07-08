@@ -29,7 +29,7 @@ jobs:
           script: |
             PLUGIN_DIR="${{ secrets.WP_PATH }}/wp-content/plugins/${{ steps.vars.outputs.plugin_name }}"
             mkdir -p "$PLUGIN_DIR"
-            rm -rf "$PLUGIN_DIR"/*
+            find "$PLUGIN_DIR" -mindepth 1 -maxdepth 1 -exec rm -rf {} +
 
       - name: Upload plugin files
         uses: appleboy/scp-action@v0.1.7
@@ -40,6 +40,7 @@ jobs:
           source: "."
           target: "${{ secrets.WP_PATH }}/wp-content/plugins/${{ steps.vars.outputs.plugin_name }}"
           rm: false
+          exclude: ".git,.git/**,.github,.github/**,.gitignore,.gitlab-ci.yml"
           strip_components: 0
 
       - name: Fix permission
@@ -50,6 +51,7 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             PLUGIN_DIR="${{ secrets.WP_PATH }}/wp-content/plugins/${{ steps.vars.outputs.plugin_name }}"
+            rm -rf "$PLUGIN_DIR/.git" "$PLUGIN_DIR/.github" "$PLUGIN_DIR/.gitignore" "$PLUGIN_DIR/.gitlab-ci.yml"
             find "$PLUGIN_DIR" -type d -exec chmod 755 {} \;
             find "$PLUGIN_DIR" -type f -exec chmod 644 {} \;
             chown -R www:www "$PLUGIN_DIR" || true
